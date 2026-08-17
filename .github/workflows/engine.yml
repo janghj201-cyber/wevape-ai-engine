@@ -1,0 +1,55 @@
+name: 위베이프 AI 조직 · 출근 시계
+on:
+  schedule:
+    - cron: "0 11 * * 0"     # 일 20:00 KST 규제 감시자 + 트렌드 리서처
+    - cron: "0 0 * * 1"      # 월 09:00 KST 편집장 기획 회의 → 기획안
+    - cron: "0 1 * * *"      # 매일 10:00 KST 작가 → 검수관
+    - cron: "0 8 * * *"      # 매일 17:00 KST 업로드 기록원
+    - cron: "30 8 * * 5"     # 금 17:30 KST 주간 발행 결과 + 편집장 결과 메모
+    - cron: "*/10 * * * *"   # 10분마다 이벤트 폴링 (승인되면 즉시 다음 단계)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "실행할 job 또는 task (예: monday_meeting, editor:plan, events:poll)"
+        required: true
+        default: "events:poll"
+concurrency: { group: engine, cancel-in-progress: false }
+permissions: { contents: write, pages: write, id-token: write }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_CONTENT_DB: ${{ secrets.NOTION_CONTENT_DB }}
+      NOTION_STAFF_DB: ${{ secrets.NOTION_STAFF_DB }}
+      NOTION_HQ_URL: ${{ secrets.NOTION_HQ_URL }}
+      KAKAO_ACCESS_TOKEN: ${{ secrets.KAKAO_ACCESS_TOKEN }}
+      NOTIFY_WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: 어떤 시계인지 결정
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "job=${{ github.event.inputs.job }}" >> $GITHUB_OUTPUT; exit 0; fi
+          case "${{ github.event.schedule }}" in
+            "0 11 * * 0") echo "job=sunday_reports" >> $GITHUB_OUTPUT;;
+            "0 0 * * 1")  echo "job=monday_meeting" >> $GITHUB_OUTPUT;;
+            "0 1 * * *")  echo "job=daily_write" >> $GITHUB_OUTPUT;;
+            "0 8 * * *")  echo "job=daily_upload" >> $GITHUB_OUTPUT;;
+            "30 8 * * 5") echo "job=friday_wrap" >> $GITHUB_OUTPUT;;
+            *)            echo "job=poll_events" >> $GITHUB_OUTPUT;;
+          esac
+      - name: 출근
+        run: node engine/run.js marketing ${{ steps.pick.outputs.job }}
+      - name: 사무실 화면 배포 (GitHub Pages)
+        if: always()
+        run: |
+          git config user.name "wevape-ai-engine"; git config user.email "engine@wevape.local"
+          git add office/index.html office/snapshot.json || true
+          git commit -m "office: ${{ steps.pick.outputs.job }} $(date -u +%FT%TZ)" || echo "변경 없음"
+          git push || true
