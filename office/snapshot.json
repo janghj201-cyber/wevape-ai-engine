@@ -1,0 +1,45 @@
+{
+ "generated_at": "2026-08-17T10:30+09:00",
+ "week": "2026-W35",
+ "manager": "장현진 팀장",
+ "staff": [
+  {"id":"editor","name":"주간 마케팅 편집장","team":"편집장","color":"#2f855a","status":"운영"},
+  {"id":"trend","name":"쇼츠 트렌드 리서처","team":"트렌드조사","color":"#d69e2e","status":"운영"},
+  {"id":"reg","name":"규제 감시자","team":"이슈조사","color":"#c53030","status":"운영"},
+  {"id":"writer","name":"블로그 작가","team":"작성","color":"#2b6cb0","status":"운영"},
+  {"id":"reviewer","name":"규제 검수관","team":"검수","color":"#dd6b20","status":"운영"},
+  {"id":"uploader","name":"업로드 기록원","team":"업로드","color":"#6b46c1","status":"운영"},
+  {"id":"novel","name":"소설 읽는 사람","team":"관점패널","color":"#b83280","status":"채용 예정"},
+  {"id":"film","name":"영화 보는 사람","team":"관점패널","color":"#b83280","status":"채용 예정"},
+  {"id":"poem","name":"시 읽는 사람","team":"관점패널","color":"#b83280","status":"채용 예정"}
+ ],
+ "author_map": {"주간 마케팅 편집장":"editor","쇼츠 트렌드 리서처":"trend","규제 감시자":"reg","블로그 작가":"writer","규제 검수관":"reviewer","업로드 기록원":"uploader"},
+ "items": [
+  {"t":"2026-08-16T18:15+09:00","title":"주간 기획안 2026-W34 (블로그 라인 첫 관통)","status":"반려","line":"기획","type":"기획안","author":"주간 마케팅 편집장","stores":["공통"],"week":"2026-W34","basis":"편집장 겸임 조사 + 관점 패널 시범 회의","review":"","memo":"반려: 블로그가 영화·시·소설 같을 필요 없음. 패널은 영상·POP용","url":"https://app.notion.com/3be09730b90681f6957dfc2eb8035afe"},
+  {"t":"2026-08-16T18:17+09:00","title":"[구월 로데오점] 2층까지 올라오는 이유가 있습니다","status":"승인","line":"블로그","type":"후기형","author":"블로그 작가","stores":["구월로데오"],"week":"2026-W34","basis":"기획안 W34 카드 1","review":"규제 검수관 — 통과 10/10. 사진6 기기 단자 브랜드 미노출 조건","memo":"","url":"https://app.notion.com/3be09730b906817395c6e5f63da115ab"},
+  {"t":"2026-08-16T18:21+09:00","title":"[부천 상동점] 영플러스 130호, 처음 오시는 길과 여름철 기기 관리","status":"승인","line":"블로그","type":"리뷰형","author":"블로그 작가","stores":["상동"],"week":"2026-W34","basis":"기획안 W34 카드 2","review":"규제 검수관 — 통과. '처음 오시는 분' 길 안내 문맥만 허용(회색지대 추가 제안)","memo":"","url":"https://app.notion.com/3be09730b9068102a7cec75a23e84abf"},
+  {"t":"2026-08-16T18:21+09:00","title":"[인천 연수점] 아시스타워 101호, 오래 오시는 분들 이야기","status":"승인","line":"블로그","type":"후기형","author":"블로그 작가","stores":["연수"],"week":"2026-W34","basis":"기획안 W34 카드 3","review":"규제 검수관 — 통과. 中文 안내는 매장 방문 한정, 신분증 사진 소품 권장","memo":"","url":"https://app.notion.com/3be09730b9068191b7b7fece2c208ac4"},
+  {"t":"2026-08-16T18:22+09:00","title":"편집장 승인 요청 메모 W34","status":"승인","line":"보고","type":"보고서","author":"주간 마케팅 편집장","stores":["공통"],"week":"2026-W34","basis":"기획안 W34, 글 3편 검수 결과","review":"","memo":"","url":"https://app.notion.com/3be09730b90681dd9951e0bc3b530409"},
+  {"t":"2026-08-16T18:43+09:00","title":"주간 기획안 2026-W34 v2 (반려 반영 — 렌즈 제거)","status":"승인","line":"기획","type":"기획안","author":"주간 마케팅 편집장","stores":["공통"],"week":"2026-W34","basis":"관리자 반려 사유 반영","review":"","memo":"","url":"https://app.notion.com/3be09730b906813eb62ecab6909ad95a"},
+  {"t":"2026-08-16T18:43+09:00","title":"발행 지시서 W34 — 승인 3편 (로데오·상동·연수)","status":"승인","line":"보고","type":"보고서","author":"업로드 기록원","stores":["구월로데오","상동","연수"],"week":"2026-W34","basis":"관리자 승인 3편","review":"","memo":"발행 담당자 지정 대기","url":"https://app.notion.com/3be09730b906819ab404d5295da0c7d0"},
+  {"t":"2026-08-16T19:22+09:00","title":"주간 이슈 브리핑 2026-W34","status":"승인","line":"기획","type":"이슈 브리핑","author":"규제 감시자","stores":["공통"],"week":"2026-W34","basis":"웹 조사 8/6~8/16 + 이슈 모니터 feeds","review":"","memo":"긴급 없음. 니코틴 어휘 전면 배제, 브랜드 혼동(wevape.co.kr) 대응 제안","url":"https://app.notion.com/3be09730b90681b693edf2ffb1106ecd"},
+  {"t":"2026-08-16T19:22+09:00","title":"주간 트렌드 보고 2026-W34","status":"승인","line":"기획","type":"트렌드 보고","author":"쇼츠 트렌드 리서처","stores":["공통"],"week":"2026-W34","basis":"웹 조사 8/2~8/16","review":"","memo":"소재 10개. 송도맥주축제 주간 지역 정보형 제안","url":"https://app.notion.com/3be09730b90681edbfd2f0c95eebc36c"},
+  {"t":"2026-08-17T09:07+09:00","title":"기획 회의록 2026-W35 (월 09:00 자동 회의)","status":"승인","line":"보고","type":"보고서","author":"주간 마케팅 편집장","stores":["공통"],"week":"2026-W35","basis":"참석 4명 병렬 의견 → 취합","review":"","memo":"검수관 '후기·리뷰' 반려어 기각, 3자 후기 인용만 금지. 리서처 실패담 톤 기각","url":"https://app.notion.com/3bf09730b90681c38665f44ce2325eec"},
+  {"t":"2026-08-17T09:07+09:00","title":"주간 기획안 2026-W35","status":"승인","line":"기획","type":"기획안","author":"주간 마케팅 편집장","stores":["공통"],"week":"2026-W35","basis":"회의록 W35 / 이슈 브리핑 / 트렌드 보고 / W34 반려 반영","review":"","memo":"9지점 1편씩. 신규 6지점 우선, 지시문 v3","url":"https://app.notion.com/3bf09730b9068189b5f7e70471bcbfd1"}
+ ],
+ "meeting": {"title":"기획 회의록 2026-W35","when":"월 09:00","chair":"editor","attendees":["reg","trend","writer","reviewer"],
+   "opinions":[
+     {"who":"reg","text":"니코틴 종류·제품 포장·청소년 연상 3개 피할 것 / 준법 문장 하단 고정"},
+     {"who":"trend","text":"송도맥주축제 가는 길+연수점 / 기기 보관 TOP3 / 지점 FAQ. 썸네일 손글씨 카드"},
+     {"who":"writer","text":"9지점 카드 1안. 행사는 교통·주차 정보로만"},
+     {"who":"reviewer","text":"니코틴 부정형도 금지 / 사진은 공간만 / '처음 오시는 분' 맥락 제한"}],
+   "decisions":["신규 6지점 우선, 연수 2순위(축제 시의성)","지시문 v3 확정","'후기·리뷰' 반려어 기각, 3자 후기 인용만 금지","기준서 v0.3 갱신 제안 → 관리자 승인 대기"]},
+ "schedule": [
+  {"when":"일 20:00","who":["reg","trend"],"what":"주간 이슈 브리핑 · 트렌드 보고"},
+  {"when":"월 09:00","who":["editor","reg","trend","writer","reviewer"],"what":"기획 회의 → 기획안"},
+  {"when":"매일 10:00","who":["writer","reviewer"],"what":"글 작성 → 10항목 검수"},
+  {"when":"매일 17:00","who":["uploader"],"what":"발행 지시서 · 발행 기록"},
+  {"when":"금 17:00","who":["uploader","editor"],"what":"주간 발행 결과 · 결과 메모"}
+ ],
+ "next_shift": {"at":"2026-08-17T17:00+09:00","label":"17:00 업로드 기록원 + (기획안 승인됨) 작가·검수관 W35 글 3편"}
+}
