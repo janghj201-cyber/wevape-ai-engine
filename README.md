@@ -55,3 +55,11 @@ node engine/run.js marketing editor:plan
 
 ## 원칙
 정의서가 곧 코드다 · 사람은 결정만 · 한 번에 한 라인, 한 부서 · 기존 도구는 부수지 않는다 · 모든 결과에 근거·검수·승인 꼬리표.
+
+
+## v0.2 (2026-08-17) — 본사 화면 + POP 라인
+- **본사 화면**: `office/index.html` 이 3장면으로 바뀜 — 대표실(#ceo, 결재함) → 복도(#hall, 부서 문) → 마케팅 방(#marketing). 엔진이 돌 때마다 재생성.
+- **POP 라인**: 직원 2명 추가 — `pop_designer`(POP 디자이너, 작성팀) + `panel_poem`(시 읽는 사람, 관점 패널). 화·목 12:00 `pop_make` 시계. 결과물은 `office/pop/*.html`(GitHub Pages로 미리보기·인쇄) + 노션 페이지(라인=POP, 검수중→검수관→승인 대기).
+- 업로드 기록원의 발행 지시서에 POP(인쇄·부착) 포함.
+- `department.json`에 `pages_url`(GitHub Pages 주소)와 `lines` 추가. Pages 폴더를 /(root)로 했다면 `pages_url` 끝에 `/office`를 붙일 것.
+- 새 부서 만들기: `org/<id>/department.json` + `staff/*.md` 만 만들면 복도에 문이 열림 (`engine/snapshot.js`의 PLANNED 목록이 잠긴 문).
