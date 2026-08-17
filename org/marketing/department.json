@@ -6,24 +6,139 @@
   "week_format": "YYYY-Www",
   "week_offset": 1,
   "_week_note": "노션 기존 주차 표기(2026-08-17 주 = W35)에 맞추기 위한 보정. ISO 표기로 통일하려면 0으로 바꾸고 노션 주차를 재표기.",
-  "stores": ["연수", "논현", "구월길병원", "구월로데오", "공항", "검단", "계산", "신중동", "상동"],
+  "stores": [
+    "연수",
+    "논현",
+    "구월길병원",
+    "구월로데오",
+    "공항",
+    "검단",
+    "계산",
+    "신중동",
+    "상동"
+  ],
   "store_master_url": "https://raw.githubusercontent.com/ceohj0101/wevape-hub/main/data.json",
-  "rules": ["../common/rules_blog_regulation.md"],
-  "status_flow": ["초안", "검수중", "승인 대기", "승인", "발행", "반려"],
+  "rules": [
+    "../common/rules_blog_regulation.md"
+  ],
+  "status_flow": [
+    "초안",
+    "검수중",
+    "승인 대기",
+    "승인",
+    "발행",
+    "반려"
+  ],
   "staff": {
-    "editor":               {"file": "staff/editor.md",               "team": "편집장",   "model": "claude-sonnet-4-5"},
-    "trend_researcher":     {"file": "staff/trend_researcher.md",     "team": "트렌드조사", "model": "claude-sonnet-4-5", "tools": ["web_search"]},
-    "regulation_watcher":   {"file": "staff/regulation_watcher.md",   "team": "이슈조사",  "model": "claude-sonnet-4-5", "tools": ["web_search"]},
-    "blog_writer":          {"file": "staff/blog_writer.md",          "team": "작성",     "model": "claude-sonnet-4-5"},
-    "regulation_reviewer":  {"file": "staff/regulation_reviewer.md",  "team": "검수",     "model": "claude-sonnet-4-5"},
-    "upload_recorder":      {"file": "staff/upload_recorder.md",      "team": "업로드",   "model": "claude-haiku-4-5"}
+    "editor": {
+      "file": "staff/editor.md",
+      "team": "편집장",
+      "model": "claude-sonnet-4-5"
+    },
+    "trend_researcher": {
+      "file": "staff/trend_researcher.md",
+      "team": "트렌드조사",
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
+    },
+    "regulation_watcher": {
+      "file": "staff/regulation_watcher.md",
+      "team": "이슈조사",
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
+    },
+    "blog_writer": {
+      "file": "staff/blog_writer.md",
+      "team": "작성",
+      "model": "claude-sonnet-4-5"
+    },
+    "regulation_reviewer": {
+      "file": "staff/regulation_reviewer.md",
+      "team": "검수",
+      "model": "claude-sonnet-4-5"
+    },
+    "upload_recorder": {
+      "file": "staff/upload_recorder.md",
+      "team": "업로드",
+      "model": "claude-haiku-4-5"
+    },
+    "pop_designer": {
+      "file": "staff/pop_designer.md",
+      "team": "작성",
+      "display": "POP 디자이너",
+      "model": "claude-sonnet-4-5"
+    },
+    "panel_poem": {
+      "file": "staff/panel_poem.md",
+      "team": "관점패널",
+      "display": "시 읽는 사람",
+      "model": "claude-sonnet-4-5"
+    }
   },
   "jobs": {
-    "sunday_reports":   {"cron": "0 11 * * 0", "kst": "일 20:00", "run": ["regulation_watcher:brief", "trend_researcher:report"]},
-    "monday_meeting":   {"cron": "0 0 * * 1",  "kst": "월 09:00", "run": ["editor:meeting", "editor:plan"]},
-    "daily_write":      {"cron": "0 1 * * *",  "kst": "매일 10:00", "run": ["blog_writer:write", "regulation_reviewer:review"]},
-    "daily_upload":     {"cron": "0 8 * * *",  "kst": "매일 17:00", "run": ["upload_recorder:instruct"]},
-    "friday_wrap":      {"cron": "30 8 * * 5", "kst": "금 17:30", "run": ["upload_recorder:weekly", "editor:weekly_memo"]},
-    "poll_events":      {"cron": "*/10 * * * *", "kst": "10분마다", "run": ["events:poll"]}
-  }
+    "sunday_reports": {
+      "cron": "0 11 * * 0",
+      "kst": "일 20:00",
+      "run": [
+        "regulation_watcher:brief",
+        "trend_researcher:report"
+      ]
+    },
+    "monday_meeting": {
+      "cron": "0 0 * * 1",
+      "kst": "월 09:00",
+      "run": [
+        "editor:meeting",
+        "editor:plan"
+      ]
+    },
+    "daily_write": {
+      "cron": "0 1 * * *",
+      "kst": "매일 10:00",
+      "run": [
+        "blog_writer:write",
+        "regulation_reviewer:review"
+      ]
+    },
+    "pop_make": {
+      "cron": "0 3 * * 2,4",
+      "kst": "화·목 12:00",
+      "run": [
+        "pop_designer:make",
+        "regulation_reviewer:review"
+      ]
+    },
+    "daily_upload": {
+      "cron": "0 8 * * *",
+      "kst": "매일 17:00",
+      "run": [
+        "upload_recorder:instruct"
+      ]
+    },
+    "friday_wrap": {
+      "cron": "30 8 * * 5",
+      "kst": "금 17:30",
+      "run": [
+        "upload_recorder:weekly",
+        "editor:weekly_memo"
+      ]
+    },
+    "poll_events": {
+      "cron": "*/10 * * * *",
+      "kst": "10분마다",
+      "run": [
+        "events:poll"
+      ]
+    }
+  },
+  "lines": [
+    "블로그",
+    "POP"
+  ],
+  "pages_url": "https://janghj201-cyber.github.io/wevape-ai-engine",
+  "_pages_note": "GitHub Pages 주소. Pages 설정에서 폴더를 /(root)로 했다면 끝에 /office 를 붙일 것."
 }
