@@ -5,6 +5,7 @@ import fs from "node:fs"; import path from "node:path";
 import { ask, askJSON } from "./claude.js";
 import * as N from "./notion.js";
 import { systemPrompt, isoWeek } from "./org.js";
+import * as M from "./memory.js";
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const POP_DIR = path.join(ROOT, "office/pop");
 const IDX = path.join(POP_DIR, "index.json");
@@ -59,7 +60,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const cands = await askJSON({ system: systemPrompt(cfg, "panel_poem"), model: cfg.staff.panel_poem.model, dry: { candidates: ["오늘도 같은 자리, 같은 사람", "여기 계산점, 문은 늘 열려 있습니다"] },
       user: `${store}점 매장 POP(A4, 매장 문·카운터 부착) 헤드라인 후보 5개를 JSON {"candidates":["..."]}로. 12자 이내, 리듬감, 과장·감탄사 없이. 금지: 제품명·맛·니코틴·가격·할인·입고·'처음'·'시작'·건강 표현. 허용 소재: 직영 신뢰, 재고 안정, 기기 관리 안내, 응대, 동네·위치, 외국인 손님 환영.\n이번 주 기획 맥락:\n${planT.slice(0, 1500)}` });
     // 2) POP 디자이너: 후보 중 선택 + 전체 스펙
-    const spec = await askJSON({ system: systemPrompt(cfg, "pop_designer"), model: cfg.staff.pop_designer.model, max_tokens: 1800,
+    const spec = await askJSON({ system: systemPrompt(cfg, "pop_designer", await M.inject(cfg, "pop_designer", { line: "POP", stores: [store] })), model: cfg.staff.pop_designer.model, max_tokens: 1800,
       dry: { title: `[${store}] 직영 매장 안내 POP`, tag: "위베이프 직영", headline: "같은 자리, 같은 사람", sub: "본사 대표 직영 매장입니다", lines: ["기기 관리 무료 점검", "재고 안정 · 취급 폭 넓음", "외국인 손님 환영"], palette: { bg: "#111827", ink: "#f9fafb", accent: "#f6d365" }, zh: "本店为总公司直营门店 · 库存充足", purpose: "매장 문 부착", check: "○" },
       user: `${store}점 A4 세로 POP 1장 스펙을 JSON으로:
 {"title":"[${store}] 용도 요약","tag":"상단 작은 배지(6자)","headline":"후보 중 선택 또는 다듬기(12자 이내)","sub":"부제 1줄(22자 이내)","lines":["본문 3~5줄, 각 18자 이내"],"palette":{"bg":"#hex","ink":"#hex","accent":"#hex"},"zh":"중국어 1줄(직영·재고 안정 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}

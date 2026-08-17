@@ -8,7 +8,7 @@ const H = () => ({
 });
 const DRY = process.env.DRY_RUN === "1";
 
-async function req(method, path, body) {
+export async function req(method, path, body) {
   if (DRY) {
     console.log(`[DRY] ${method} ${path}`, JSON.stringify(body || {}).slice(0, 200));
     if (path.includes("/query") || path.includes("/children")) return { results: [], has_more: false };

@@ -7,6 +7,7 @@ import { loadDept } from "./org.js";
 import { REGISTRY } from "./jobs.js";
 import { snapshot } from "./snapshot.js";
 import { notify } from "./notify.js";
+import * as M from "./memory.js";
 
 const [dept = "marketing", ...args] = process.argv.slice(2);
 const cfg = loadDept(dept);
@@ -17,7 +18,8 @@ const results = [];
 for (const t of tasks) {
   const fn = REGISTRY[t]; if (!fn) { results.push(`${t}: 알 수 없는 작업`); continue; }
   const started = Date.now();
-  try { const r = await fn(cfg); results.push(`✅ ${t} (${((Date.now() - started) / 1000).toFixed(0)}s)\n${r}`); }
+  try { const r = await fn(cfg); results.push(`✅ ${t} (${((Date.now() - started) / 1000).toFixed(0)}s)\n${r}`);
+    const sid = t.split(":")[0]; if (cfg.staff[sid]) { try { await M.note(cfg, sid, t, r); } catch (e) { console.error("노트 실패:", e.message); } } }
   catch (e) { results.push(`❌ ${t}: ${e.message}`); }
 }
 console.log(results.join("\n\n"));
