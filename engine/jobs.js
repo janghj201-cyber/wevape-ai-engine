@@ -2,6 +2,7 @@
 import { ask, askJSON } from "./claude.js";
 import * as N from "./notion.js";
 import { systemPrompt, isoWeek, kstNow } from "./org.js";
+import { pop_designer_make } from "./pop.js";
 
 let WEEK_OFFSET = 0; const week = () => isoWeek(new Date(), WEEK_OFFSET);
 const byWeek = (items, w) => items.filter(i => i.week === w);
@@ -113,13 +114,13 @@ export async function regulation_reviewer_review(cfg) {
 // ── 업로드 기록원: 발행 지시서 (승인·미포함 글) + 발행 URL 공란 점검
 export async function upload_recorder_instruct(cfg) {
   const { items, w } = await ctx();
-  const approved = items.filter(i => i.status === "승인" && i.line === "블로그");
+  const approved = items.filter(i => i.status === "승인" && (i.line === "블로그" || i.line === "POP"));
   const sheets = items.filter(i => i.title.startsWith("발행 지시서")); const covered = new Set();
   for (const s of sheets) (await N.readPageText(s.id)).split("\n").forEach(l => approved.forEach(a => { if (l.includes(a.title.slice(0, 20))) covered.add(a.id); }));
   const todo = approved.filter(a => !covered.has(a.id)); const out = [];
   if (todo.length) {
     const body = await ask({ system: systemPrompt(cfg, "upload_recorder"), model: cfg.staff.upload_recorder.model,
-      user: `아래 승인 글의 「발행 지시서 ${w}」를 마크다운 표로: 순서 / 글 제목 / 지점 계정 / 권장 발행 시각(독자 시간대 근거) / 촬영 필요 컷 요약 / 주의. 마지막에 "발행 후 할 일" 3줄.\n${todo.map(t => `- ${t.title} (${t.stores.join(",")}) ${t.url}`).join("\n")}` });
+      user: `아래 승인 건의 「발행 지시서 ${w}」를 마크다운 표로: 순서 / 제목 / 종류(블로그 발행 또는 POP 인쇄·부착) / 지점 계정·부착 위치 / 권장 발행·부착 시각 / 촬영 필요 컷 요약(POP는 인쇄 매수·용지) / 주의. 마지막에 "발행 후 할 일" 3줄.\n${todo.map(t => `- [${t.line}] ${t.title} (${t.stores.join(",")}) ${t.url}`).join("\n")}` });
     const p = await N.createContent({ title: `발행 지시서 ${w} — ${todo.length}편`, status: "승인", line: "보고", type: "보고서", team: "업로드", stores: [...new Set(todo.flatMap(t => t.stores))], author: "업로드 기록원", week: w, basis: `승인 ${todo.length}편`, body });
     out.push(`발행 지시서 ${w} 생성(${todo.length}편) ${p.url}`);
   }
@@ -156,5 +157,6 @@ const _R = {
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
   "regulation_reviewer:review": regulation_reviewer_review, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
+  "pop_designer:make": pop_designer_make,
 };
 export const REGISTRY = Object.fromEntries(Object.entries(_R).map(([k, f]) => [k, (cfg, ...a) => { WEEK_OFFSET = cfg.week_offset || 0; return f(cfg, ...a); }]));
