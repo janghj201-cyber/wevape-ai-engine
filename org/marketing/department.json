@@ -77,6 +77,15 @@
       "team": "관점패널",
       "display": "시 읽는 사람",
       "model": "claude-sonnet-4-5"
+    },
+    "industry_reader": {
+      "file": "staff/industry_reader.md",
+      "team": "트렌드조사",
+      "display": "업계 독서가",
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
     }
   },
   "jobs": {
@@ -86,6 +95,13 @@
       "run": [
         "regulation_watcher:brief",
         "trend_researcher:report"
+      ]
+    },
+    "reader_shift": {
+      "cron": "0 */6 * * *",
+      "kst": "6시간마다 (03·09·15·21시)",
+      "run": [
+        "industry_reader:read"
       ]
     },
     "monday_meeting": {
@@ -124,7 +140,8 @@
       "kst": "금 17:30",
       "run": [
         "upload_recorder:weekly",
-        "editor:weekly_memo"
+        "editor:weekly_memo",
+        "memory:self_review"
       ]
     },
     "poll_events": {
@@ -140,5 +157,7 @@
     "POP"
   ],
   "pages_url": "https://janghj201-cyber.github.io/wevape-ai-engine/office",
-  "_pages_note": "GitHub Pages 주소. Pages 설정에서 폴더를 /(root)로 했다면 끝에 /office 를 붙일 것."
+  "_pages_note": "GitHub Pages 주소. Pages 설정에서 폴더를 /(root)로 했다면 끝에 /office 를 붙일 것.",
+  "memory_db": "8fd22b7bb9324e02a4b3c802de03f13b",
+  "_memory_note": "노션 「기억·성장」DB id. NOTION_MEMORY_DB 시크릿이 있으면 그것을 우선."
 }
