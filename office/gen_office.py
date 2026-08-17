@@ -124,6 +124,13 @@ a{color:inherit}
 .stat b{display:block;font-size:20px;line-height:1.1}
 .stat small{font-size:10px;color:var(--muted)}
 .popwall{min-height:150px}
+.mem{min-height:120px}
+.mem .shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 8px}
+.mem .book{border-radius:6px;padding:6px 8px;color:#fff;text-align:center;font-size:11px}
+.mem .book b{display:block;font-size:18px;line-height:1.1}
+.mem .feed{font-size:11px;max-height:120px;overflow:auto}
+.mem .feed div{padding:3px 0;border-bottom:1px dashed var(--line)}
+.mem .feed .k{display:inline-block;font-size:10px;padding:0 6px;border-radius:999px;color:#fff;margin-right:4px}
 .pops{display:flex;gap:10px;overflow-x:auto;padding:6px 2px}
 .popthumb{flex:0 0 150px;text-decoration:none;color:inherit}
 .popthumb .fr{width:150px;height:212px;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.1);position:relative}
@@ -161,6 +168,7 @@ a{color:inherit}
     <div class="room meet" id="meet"></div>
     <div class="room factory" id="factory"></div>
     <div class="room popwall" id="popwall"></div>
+    <div class="room mem" id="mem"></div>
   </div>
   <div class="right">
     <div class="room ceo" id="ceo"></div>
@@ -198,7 +206,7 @@ const cnt = s=>items.filter(i=>i.status===s).length;
 
 /* ─────────── 장면 1: 대표실 ─────────── */
 (function(){
-  const kind = it => it.line==="POP"?"pop":(it.type==="기획안"?"plan":(it.line==="보고"||it.line==="기획"?"report":""));
+  const kind = it => it.line==="POP"?"pop":(it.type==="기획안"?"plan":(it.type==="개정 제안"?"plan":(it.line==="보고"||it.line==="기획"?"report":"")));
   const docs = wait.length ? `<div class="docs">${wait.map(it=>`
     <div class="doc ${kind(it)}"><span class="stamp">결재 대기</span>
       <b>${esc(it.title)}</b>
@@ -210,6 +218,7 @@ const cnt = s=>items.filter(i=>i.status===s).length;
     const n = d.active ? items.length : 0;
     return `<li><b>${d.icon} ${d.name}</b> — ${d.active?`오늘 산출물 ${todayItems.length}건 · 승인 대기 ${wait.length}건 · 근무 ${D.staff.filter(s=>s.status!=="채용 예정").length}명`:"준비 중"}</li>`;
   }).join("");
+  const MEMc = D.memory || {knowledge:0,notes:0,lessons:0,proposals:0};
   const recent = items.filter(i=>i.memo).slice(-3).map(i=>`<li>${esc(i.title.slice(0,28))} — ${esc(i.memo.slice(0,70))}</li>`).join("") || "<li>기록 없음</li>";
   const ceo = {id:"ceo",name:D.manager,color:"#1e2a3a"};
   document.getElementById('s-ceo').innerHTML = `
@@ -224,7 +233,8 @@ const cnt = s=>items.filter(i=>i.status===s).length;
       <div class="side">
         <a class="doorbtn" href="#hall"><span class="d"></span><span>복도로 나가기<small>부서 방으로 이동 · ${D.departments.filter(d=>d.active).length}개 부서 근무 중</small></span></a>
         <div class="card brief"><h3>📋 오늘 브리핑 (${today})</h3><ul>${byDept}</ul></div>
-        <div class="card brief"><h3>📌 최근 결정 (관리자 메모)</h3><ul>${recent}</ul></div>
+        <div class="card brief"><h3>📌 최근 결정 (관리자 메모)</h3><ul>${recent}</ul><div style="margin-top:6px;color:var(--muted)">반려·메모는 10분 안에 해당 직원의 교훈 카드가 됩니다.</div></div>
+        <div class="card brief"><h3>📚 조직의 기억</h3><ul><li>지식 카드 <b>${MEMc.knowledge}</b> · 업무 노트 <b>${MEMc.notes}</b> · 교훈 <b>${MEMc.lessons}</b> · 개정 제안 <b>${MEMc.proposals}</b></li></ul></div>
         <div class="card"><h3>📈 누적</h3>
           <div class="stats"><div class="stat"><b>${items.length}</b><small>결과물</small></div><div class="stat"><b>${cnt("승인")+cnt("발행")}</b><small>승인·발행</small></div><div class="stat"><b>${cnt("승인 대기")}</b><small>대기</small></div><div class="stat"><b>${cnt("반려")}</b><small>반려</small></div></div></div>
       </div>
@@ -278,6 +288,14 @@ document.getElementById('factory').innerHTML = F;
 let P = `<h3><span>🖼️</span>POP 게시판 — 매장 인쇄물 (검수·승인 후 인쇄)</h3>`;
 P += D.pops.length ? `<div class="pops">${D.pops.slice(-8).reverse().map(p=>`<a class="popthumb" href="${p.file}" target="_blank" title="${esc(p.title)}"><div class="fr"><iframe src="${p.file}" loading="lazy" tabindex="-1"></iframe></div><small>${esc(p.store)} · ${esc(p.title)} ${st(p.status||"")}</small></a>`).join("")}</div>` : `<div class="out">아직 POP 없음 — POP 디자이너 첫 근무(화·목 12:00) 후 여기 걸립니다.</div>`;
 document.getElementById('popwall').innerHTML = P;
+
+// 기억·성장 서고
+const MEM = D.memory || {knowledge:0,notes:0,lessons:0,proposals:0,latest:[]};
+const kcol = {"지식 카드":"#2b6cb0","업무 노트":"#6b7280","교훈 카드":"#c53030","개정 제안":"#6b46c1"};
+let MM = `<h3><span>📚</span>기억·성장 서고 — 업계 독서가가 채우고, 모든 직원이 출근 전에 읽는다</h3>
+<div class="shelf"><div class="book" style="background:#2b6cb0"><b>${MEM.knowledge}</b>지식 카드</div><div class="book" style="background:#6b7280"><b>${MEM.notes}</b>업무 노트</div><div class="book" style="background:#c53030"><b>${MEM.lessons}</b>교훈 카드</div><div class="book" style="background:#6b46c1"><b>${MEM.proposals}</b>정의서 개정 제안</div></div>
+<div class="feed">${MEM.latest.length? MEM.latest.map(k=>`<div><span class="k" style="background:${kcol[k.type]||'#888'}">${k.type}</span><b>${esc(k.staff)}</b> · <a href="${k.url}" target="_blank">${esc(k.title)}</a> <span style="color:var(--muted)">— ${esc(k.summary)}</span></div>`).join("") : `<div style="color:var(--muted)">아직 비어 있음 — 업계 독서가 첫 근무 후 채워집니다.</div>`}</div>`;
+document.getElementById('mem').innerHTML = MM;
 
 let C = `<h3><span>👤</span>대표실 결재함 (요약)</h3><div class="out">`;
 C += wait.length? `<ul style="margin:0;padding-left:14px">${wait.map(i=>`<li>${st(i.status)} <a href="${i.url}" target="_blank">${esc(i.title.slice(0,30))}</a></li>`).join("")}</ul>` : `<div style="color:#6b7280">승인 대기 없음 ✔</div>`;
