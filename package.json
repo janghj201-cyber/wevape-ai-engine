@@ -1,0 +1,12 @@
+{
+  "name": "wevape-ai-engine",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "위베이프 AI 조직 엔진 — 정의서를 프롬프트로, 노션을 기억으로, GitHub Actions를 출근 시계로",
+  "scripts": {
+    "run": "node engine/run.js",
+    "dry": "DRY_RUN=1 node engine/run.js marketing",
+    "office": "node -e \"import('./engine/org.js').then(async o=>{const {snapshot}=await import('./engine/snapshot.js');await snapshot(o.loadDept('marketing'))})\""
+  },
+  "engines": { "node": ">=20" }
+}
