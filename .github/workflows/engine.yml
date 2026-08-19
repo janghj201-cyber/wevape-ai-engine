@@ -17,6 +17,22 @@ on:
         description: "실행할 job 또는 task (예: monday_meeting, editor:plan, events:poll)"
         required: true
         default: "events:poll"
+      page_id:
+        description: "(company:score 전용) 노션 페이지 id"
+        required: false
+        default: ""
+      score:
+        description: "(company:score) 0~100"
+        required: false
+        default: ""
+      decision:
+        description: "(company:score) 승인|반려|유지"
+        required: false
+        default: ""
+      memo:
+        description: "(company:score) 관리자 메모"
+        required: false
+        default: ""
 concurrency: { group: engine, cancel-in-progress: false }
 permissions: { contents: write, pages: write, id-token: write }
 jobs:
@@ -29,6 +45,10 @@ jobs:
       NOTION_STAFF_DB: ${{ secrets.NOTION_STAFF_DB }}
       NOTION_HQ_URL: ${{ secrets.NOTION_HQ_URL }}
       NOTION_MEMORY_DB: ${{ secrets.NOTION_MEMORY_DB }}
+      INPUT_PAGE_ID: ${{ github.event.inputs.page_id }}
+      INPUT_SCORE: ${{ github.event.inputs.score }}
+      INPUT_DECISION: ${{ github.event.inputs.decision }}
+      INPUT_MEMO: ${{ github.event.inputs.memo }}
       KAKAO_ACCESS_TOKEN: ${{ secrets.KAKAO_ACCESS_TOKEN }}
       NOTIFY_WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK }}
     steps:
