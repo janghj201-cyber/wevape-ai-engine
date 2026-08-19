@@ -38,5 +38,25 @@
   "file": "pop/2026-W35-구월로데오-01.html",
   "t": "2026-08-18T03:40:37.011Z",
   "status": "검수중"
+ },
+ {
+  "notion_id": "3c109730-b906-8167-8874-f0fb23d345f4",
+  "notion_url": "https://app.notion.com/p/POP-3c109730b90681678874f0fb23d345f4",
+  "store": "공항",
+  "week": "2026-W35",
+  "title": "공항 가까이 직영 매장",
+  "file": "pop/2026-W35-공항-01.html",
+  "t": "2026-08-19T07:36:42.309Z",
+  "status": "검수중"
+ },
+ {
+  "notion_id": "3c109730-b906-811a-b334-d501cfe4dd61",
+  "notion_url": "https://app.notion.com/p/POP-3c109730b906811ab334d501cfe4dd61",
+  "store": "검단",
+  "week": "2026-W35",
+  "title": "매일 여는 자리",
+  "file": "pop/2026-W35-검단-01.html",
+  "t": "2026-08-19T07:36:53.601Z",
+  "status": "검수중"
  }
 ]
