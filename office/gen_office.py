@@ -59,6 +59,14 @@ a{color:inherit}
 .doc.pop{border-left-color:#b83280}.doc.plan{border-left-color:#2f855a}.doc.report{border-left-color:#2b6cb0}
 .stamp{position:absolute;right:8px;top:8px;font-size:10px;border:1.5px solid var(--wait);color:var(--wait);border-radius:4px;padding:1px 5px;transform:rotate(-8deg);font-weight:800;letter-spacing:.5px}
 .empty{color:var(--muted);text-align:center;padding:60px 0;font-size:13px}
+.score{display:flex;gap:4px;align-items:center;margin-top:7px;flex-wrap:wrap}
+.score input[type=range]{flex:1;min-width:90px}
+.score .v{font-weight:900;width:28px;text-align:right;font-variant-numeric:tabular-nums}
+.score button{border:0;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:800;cursor:pointer;color:#fff}
+.score .ok{background:var(--ok)}.score .rej{background:var(--rej)}.score .only{background:var(--navy)}
+.score input[type=text]{flex:1 1 100%;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+.sent{font-size:11px;color:var(--ok);margin-top:4px}
+.gear{cursor:pointer;font-size:12px;color:var(--muted);margin-left:auto}
 .side{display:flex;flex-direction:column;gap:12px}
 .card{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12px}
 .card h3{margin:0 0 6px;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
@@ -220,7 +228,9 @@ const cnt = s=>items.filter(i=>i.status===s).length;
       <b>${esc(it.title)}</b>
       <div class="who">${esc(it.author)} · ${it.line}·${it.type} · ${it.t.slice(5,16).replace('T',' ')}</div>
       ${it.review?`<div class="rev">🛡️ ${esc(it.review)}</div>`:""}
-      <div class="act"><a class="btn sm" href="${it.url}" target="_blank">서류 열기 → 승인/반려</a>${it.file?`<a class="btn sm ghost" href="${it.file}" target="_blank">미리보기</a>`:""}</div>
+      <div class="act"><a class="btn sm ghost" href="${it.url}" target="_blank">서류 열기</a>${it.file?`<a class="btn sm ghost" href="${it.file}" target="_blank">미리보기</a>`:""}</div>
+      <div class="score" data-id="${it.id||""}"><input type="range" min="0" max="100" value="70" oninput="this.nextElementSibling.textContent=this.value"><span class="v">70</span><button class="ok" onclick="sendScore(this,'승인')">승인</button><button class="rej" onclick="sendScore(this,'반려')">반려</button><button class="only" onclick="sendScore(this,'유지')">점수만</button><input type="text" placeholder="메모(선택) — 반려 사유·고칠 점은 교훈 카드가 됩니다"></div>
+      <div class="sent"></div>
     </div>`).join("")}</div>` : `<div class="empty">📭 결재함이 비었습니다 — 모두 처리됨. 직원들이 다음 결과물을 만드는 중입니다.</div>`;
   const byDept = D.departments.map(d=>{
     const n = d.active ? items.length : 0;
@@ -234,7 +244,7 @@ const cnt = s=>items.filter(i=>i.status===s).length;
     <div class="ceo-head"><h2>👤 대표실</h2><small>관리자 ${esc(D.manager)} · 여기서 하는 일은 승인·반려뿐. 나머지는 직원들이 돌린다.</small><div class="window"></div></div>
     <div class="ceo-grid">
       <div class="desk">
-        <h3>🗂️ 결재함 <span class="badge ${wait.length?'':'zero'}">${wait.length}</span> <small style="font-weight:400;color:#5b4630">서류를 열어 노션에서 상태를 「승인」 또는 「반려」로 바꾸면 10분 안에 직원들이 이어받습니다.</small></h3>
+        <h3>🗂️ 결재함 <span class="badge ${wait.length?'':'zero'}">${wait.length}</span> <small style="font-weight:400;color:#5b4630">점수를 매기고 승인/반려를 누르면 바로 노션에 기록되고 직원들이 이어받습니다.</small><span class="gear" onclick="setToken()" title="결재 연결 설정">⚙ 결재 연결</span></h3>
         <div class="tray">${docs}</div>
         <div style="margin-top:10px;display:flex;justify-content:center"><div class="person" style="width:64px">${fig(ceo,44)}<div>${esc(D.manager)}</div></div></div>
       </div>
@@ -335,6 +345,20 @@ document.querySelectorAll('.tl .row').forEach(r=>r.addEventListener('click',()=>
   document.getElementById('trace').innerHTML = h;
 }));
 
+/* ─────────── 대표실 채점·결재 → GitHub Actions → 노션 ─────────── */
+function setToken(){ const t=prompt("GitHub 토큰(fine-grained, 이 리포 Actions: Read and write)을 붙여넣으세요. 이 브라우저에만 저장됩니다.", localStorage.getItem("wv_gh_token")||""); if(t!==null){ localStorage.setItem("wv_gh_token", t.trim()); alert(t.trim()?"저장됐습니다. 이제 결재함에서 바로 점수·승인·반려가 됩니다.":"토큰을 지웠습니다."); } }
+async function sendScore(btn, decision){
+  const box=btn.closest('.score'); const id=box.dataset.id; const score=box.querySelector('input[type=range]').value; const memo=box.querySelector('input[type=text]').value; const out=box.nextElementSibling;
+  const tok=localStorage.getItem("wv_gh_token"); if(!tok){ out.textContent="먼저 ⚙ 결재 연결에서 토큰을 넣어주세요."; return; }
+  if(!D.repo){ out.textContent="repo 설정 없음(department.json github_repo)"; return; }
+  if(!id){ out.textContent="페이지 id 없음 — 다음 갱신 후 다시"; return; }
+  out.textContent="전송 중…";
+  try{
+    const r=await fetch(`https://api.github.com/repos/${D.repo}/actions/workflows/engine.yml/dispatches`,{method:"POST",headers:{"Authorization":"Bearer "+tok,"Accept":"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{job:"company:score",page_id:id,score:String(score),decision,memo}})});
+    if(r.status===204){ out.textContent=`✔ ${decision} · ${score}점 전송됨 — 1~2분 내 노션 반영, 카드는 다음 갱신 때 사라집니다.`; btn.closest('.doc').style.opacity=.5; }
+    else { out.textContent=`실패 ${r.status}: 토큰 권한(Actions: write) 또는 리포 이름 확인`; }
+  }catch(e){ out.textContent="실패: "+e.message; }
+}
 /* ─────────── 장면 전환 + 시계 + 애니메이션 ─────────── */
 function show(){
   let s = (location.hash||"#ceo").slice(1); if(!document.getElementById('s-'+s)) s="ceo";
