@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-19T16:43",
+ "generated_at": "2026-08-19T16:50",
  "week": "2026-W35",
  "manager": "장현진 팀장",
  "staff": [
@@ -2621,6 +2621,36 @@
    }
   ]
  },
+ "score": {
+  "week": "2026-W35",
+  "blog_quality": 35,
+  "pop_quality": 30,
+  "execution": 0,
+  "regulation": 100,
+  "learning": 90,
+  "collaboration": 15,
+  "counts": {
+   "items": 112,
+   "week_items": 103,
+   "approved": 4,
+   "published": 0,
+   "knowledge": 80,
+   "lessons": 23,
+   "repeat": 1,
+   "standups": 0,
+   "waiting": 2
+  },
+  "total": 45,
+  "weights": {
+   "blog_quality": 25,
+   "pop_quality": 20,
+   "execution": 15,
+   "regulation": 15,
+   "learning": 15,
+   "collaboration": 10
+  },
+  "at": "2026-08-19T16:50"
+ },
  "meeting": {
   "title": "기획 회의록 2026-W35 (월 09:00 자동 회의)",
   "when": "월 09:00",
@@ -2666,6 +2696,13 @@
    "what": "meeting · plan"
   },
   {
+   "when": "매일 09:30",
+   "who": [
+    "editor"
+   ],
+   "what": "standup"
+  },
+  {
    "when": "매일 10:00",
    "who": [
     "writer",
@@ -2693,13 +2730,14 @@
    "who": [
     "uploader",
     "editor",
-    "reader"
+    "reader",
+    "editor"
    ],
-   "what": "weekly · weekly_memo · self_review"
+   "what": "weekly · weekly_memo · self_review · retro"
   }
  ],
  "next_shift": {
-  "at": "2026-08-19T08:43:02.726Z",
+  "at": "2026-08-19T08:50:33.924Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
