@@ -51,10 +51,10 @@ export async function queryStaff() {
 }
 
 // 마크다운(간단) → 노션 블록. 제목/불릿/코드/구분선/문단만 지원 (표는 문단으로).
-export function mdToBlocks(md) {
+export function mdToBlocks(md, max = 95) {
   const blocks = []; const lines = md.split("\n"); let i = 0;
   const T = (t) => ({ type: "text", text: { content: t.slice(0, 1900) } });
-  while (i < lines.length && blocks.length < 95) {
+  while (i < lines.length && blocks.length < max) {
     const l = lines[i];
     if (l.startsWith("```")) { const buf = []; i++; while (i < lines.length && !lines[i].startsWith("```")) buf.push(lines[i++]); i++;
       blocks.push({ object: "block", type: "code", code: { language: "plain text", rich_text: [T(buf.join("\n"))] } }); continue; }
@@ -77,7 +77,9 @@ export async function createContent({ title, status, line, type, team, stores = 
   if (week) props["주차"] = { select: { name: week } };
   if (review) props["검수 결과"] = { rich_text: rich(review) };
   if (memo) props["관리자 메모"] = { rich_text: rich(memo) };
-  const page = await req("POST", "/pages", { parent: { database_id: process.env.NOTION_CONTENT_DB }, properties: props, children: mdToBlocks(body).slice(0, 95) });
+  const blocks = mdToBlocks(body, 100000);
+  const page = await req("POST", "/pages", { parent: { database_id: process.env.NOTION_CONTENT_DB }, properties: props, children: blocks.slice(0, 95) });
+  for (let i = 95; i < blocks.length; i += 95) { try { await req("PATCH", `/blocks/${page.id}/children`, { children: blocks.slice(i, i + 95) }); } catch (e) { console.error("본문 이어붙이기 실패:", e.message); break; } }
   return page;
 }
 

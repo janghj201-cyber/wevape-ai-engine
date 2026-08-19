@@ -39,7 +39,10 @@ export async function createMemory(cfg, { title, type, staff = "공용", categor
   if (category) props["분류"] = { select: { name: category } };
   if (tags.length) props["태그"] = { multi_select: tags.map(name => ({ name })) };
   if (source) props["출처"] = { url: source }; if (related) props["관련 항목"] = { url: related }; if (week) props["주차"] = { rich_text: rich(week) };
-  return N.req("POST", "/pages", { parent: { database_id: dbId(cfg) }, properties: props, children: N.mdToBlocks(body).slice(0, 95) });
+  const blocks = N.mdToBlocks(body, 100000);
+  const page = await N.req("POST", "/pages", { parent: { database_id: dbId(cfg) }, properties: props, children: blocks.slice(0, 95) });
+  for (let i = 95; i < blocks.length; i += 95) { try { await N.req("PATCH", `/blocks/${page.id}/children`, { children: blocks.slice(i, i + 95) }); } catch { break; } }
+  return page;
 }
 
 // ── 출근 직전 주입: 자기 노트 최근 5 + 자기 교훈 전부 + 관련 지식 카드 ≤15
