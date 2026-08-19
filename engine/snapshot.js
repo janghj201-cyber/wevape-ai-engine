@@ -2,6 +2,7 @@
 import fs from "node:fs"; import path from "node:path"; import { execSync } from "node:child_process";
 import * as N from "./notion.js";
 import { queryMemory } from "./memory.js";
+import { currentScore } from "./company.js";
 import { kstNow, isoWeek, listDepts } from "./org.js";
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const COLORS = { "편집장": "#2f855a", "트렌드조사": "#d69e2e", "이슈조사": "#c53030", "작성": "#2b6cb0", "검수": "#dd6b20", "업로드": "#6b46c1", "관점패널": "#b83280" };
@@ -34,6 +35,7 @@ export async function snapshot(cfg) {
   const kst = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(0, 16) + "+09:00";
   let memory = { knowledge: 0, notes: 0, lessons: 0, proposals: 0, latest: [] };
   try { const all = await queryMemory(cfg, undefined, 400); memory = { knowledge: all.filter(k => k.type === "지식 카드").length, notes: all.filter(k => k.type === "업무 노트").length, lessons: all.filter(k => k.type === "교훈 카드").length, proposals: all.filter(k => k.type === "개정 제안").length, latest: all.slice(0, 12).map(k => ({ t: kst(k.created), type: k.type, staff: k.staff, title: k.title, summary: k.summary.slice(0, 120), url: k.url, category: k.category })) }; } catch (e) { console.error("memory snapshot 실패:", e.message); }
+  const score = await currentScore(cfg);
   const pops = popIndex().map(p => ({ ...p, status: items.find(i => i.id === p.notion_id)?.status || p.status }));
   const fileOf = (i) => pops.find(p => p.notion_id === i.id)?.file || "";
   const departments = [
@@ -44,9 +46,9 @@ export async function snapshot(cfg) {
   const snap = {
     generated_at: kstNow().slice(0, 16), week: isoWeek(new Date(), cfg.week_offset || 0), manager: cfg.manager, staff, author_map: IDS, departments, pages_url: cfg.pages_url || "",
     items: items.map(i => ({ id: i.id, t: kst(i.created), title: i.title, status: i.status, line: i.line, type: i.type, author: i.author, stores: i.stores, week: i.week, basis: i.basis, review: i.review, memo: i.memo, url: i.url, file: fileOf(i) })),
-    pops, memory,
+    pops, memory, score,
     meeting,
-    schedule: Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다")).map(j => ({ when: j.kst, who: j.run.map(r => ({ regulation_watcher: "reg", trend_researcher: "trend", editor: "editor", blog_writer: "writer", regulation_reviewer: "reviewer", upload_recorder: "uploader", pop_designer: "pop", panel_poem: "poem", industry_reader: "reader", memory: "reader", panel: "film", panel_film: "film", panel_novel: "novel" })[r.split(":")[0]]).filter(Boolean), what: j.run.map(r => r.split(":")[1]).join(" · ") })),
+    schedule: Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다")).map(j => ({ when: j.kst, who: j.run.map(r => ({ regulation_watcher: "reg", trend_researcher: "trend", editor: "editor", blog_writer: "writer", regulation_reviewer: "reviewer", upload_recorder: "uploader", pop_designer: "pop", panel_poem: "poem", industry_reader: "reader", memory: "reader", company: "editor", panel: "film", panel_film: "film", panel_novel: "novel" })[r.split(":")[0]]).filter(Boolean), what: j.run.map(r => r.split(":")[1]).join(" · ") })),
     next_shift: { at: new Date(Date.now() + 3600e3).toISOString(), label: "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서" },
   };
   fs.mkdirSync(path.join(ROOT, "office"), { recursive: true });

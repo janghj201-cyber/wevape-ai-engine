@@ -4,6 +4,7 @@ import * as N from "./notion.js";
 import { systemPrompt, isoWeek, kstNow } from "./org.js";
 import { pop_designer_make } from "./pop.js";
 import * as M from "./memory.js";
+import * as C from "./company.js";
 
 let WEEK_OFFSET = 0; const week = () => isoWeek(new Date(), WEEK_OFFSET);
 const byWeek = (items, w) => items.filter(i => i.week === w);
@@ -177,6 +178,7 @@ const _R = {
   "regulation_reviewer:review": regulation_reviewer_review, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
   "pop_designer:make": pop_designer_make,
-  "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
+  "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,
+  "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
 };
 export const REGISTRY = Object.fromEntries(Object.entries(_R).map(([k, f]) => [k, (cfg, ...a) => { WEEK_OFFSET = cfg.week_offset || 0; return f(cfg, ...a); }]));

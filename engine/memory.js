@@ -46,10 +46,11 @@ export async function createMemory(cfg, { title, type, staff = "공용", categor
 export async function inject(cfg, staffId, ctx = {}) {
   if (!dbId(cfg) || DRY) return "";
   const me = NAME(cfg, staffId);
-  const [notes, lessons, knowledge] = await Promise.all([
+  const [notes, lessons, knowledge, goals] = await Promise.all([
     queryMemory(cfg, { and: [{ property: "유형", select: { equals: "업무 노트" } }, { property: "직원", select: { equals: me } }] }, 5),
     queryMemory(cfg, { and: [{ property: "유형", select: { equals: "교훈 카드" } }, { property: "상태", select: { equals: "활성" } }, { or: [{ property: "직원", select: { equals: me } }, { property: "직원", select: { equals: "공용" } }] }] }, 30),
     queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "상태", select: { equals: "활성" } }] }, 120),
+    queryMemory(cfg, { and: [{ property: "유형", select: { equals: "목표·계획" } }, { property: "직원", select: { equals: me } }] }, 2),
   ]);
   const line = ctx.line, stores = ctx.stores || [], topic = (ctx.topic || "").toLowerCase();
   const score = (k) => (line && k.lines.includes(line) ? 3 : 0) + (k.lines.includes("공통") ? 1 : 0) + (stores.some(s => k.stores.includes(s)) ? 3 : 0) + (k.stores.includes("공통") ? 1 : 0)
@@ -58,6 +59,7 @@ export async function inject(cfg, staffId, ctx = {}) {
   const fmt = (arr, f) => arr.length ? arr.map(f).join("\n") : "(없음)";
   return [
     `# 기억 (출근 전에 먼저 읽는다)`,
+    `## 나의 이번 주 목표·계획 (스스로 세운 것 — 오늘 근무가 이 목표에 기여하는지 확인)\n${fmt(goals, g => `- ${g.title} — ${g.summary}`)}`,
     `## 나의 최근 업무 노트\n${fmt(notes, n => `- [${n.created.slice(0, 10)}] ${n.title} — ${n.summary}`)}`,
     `## 나에게 온 교훈 (관리자 반려·메모에서 나온 것 — 최우선 반영)\n${fmt(lessons, l => `- ${l.title} — ${l.summary}`)}`,
     `## 지식 창고에서 고른 카드 (업계 독서가) ${picked.length}장\n${fmt(picked, k => `- (${k.category}${k.confidence ? "·" + k.confidence : ""}) ${k.title} — ${k.summary}${k.source ? ` [출처: ${k.source}]` : ""}`)}`,
