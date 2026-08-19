@@ -140,6 +140,13 @@
         "editor:plan"
       ]
     },
+    "daily_standup": {
+      "cron": "30 0 * * *",
+      "kst": "매일 09:30",
+      "run": [
+        "company:standup"
+      ]
+    },
     "daily_write": {
       "cron": "0 1 * * *",
       "kst": "매일 10:00",
@@ -169,7 +176,8 @@
       "run": [
         "upload_recorder:weekly",
         "editor:weekly_memo",
-        "memory:self_review"
+        "memory:self_review",
+        "company:retro"
       ]
     },
     "poll_events": {
@@ -187,5 +195,6 @@
   "pages_url": "https://janghj201-cyber.github.io/wevape-ai-engine/office",
   "_pages_note": "GitHub Pages 주소. Pages 설정에서 폴더를 /(root)로 했다면 끝에 /office 를 붙일 것.",
   "memory_db": "8fd22b7bb9324e02a4b3c802de03f13b",
-  "_memory_note": "노션 「기억·성장」DB id. NOTION_MEMORY_DB 시크릿이 있으면 그것을 우선."
+  "_memory_note": "노션 「기억·성장」DB id. NOTION_MEMORY_DB 시크릿이 있으면 그것을 우선.",
+  "company_goal": "100점 — org/marketing/scorecard.md"
 }
