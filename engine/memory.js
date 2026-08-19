@@ -10,7 +10,7 @@ import { isoWeek, kstNow } from "./org.js";
 
 const DRY = process.env.DRY_RUN === "1";
 const dbId = (cfg) => process.env.NOTION_MEMORY_DB || cfg.memory_db;
-const NAME = (cfg, id) => cfg.staff[id]?.display || ({ editor: "주간 마케팅 편집장", blog_writer: "블로그 작가", regulation_watcher: "규제 감시자", regulation_reviewer: "규제 검수관", trend_researcher: "쇼츠 트렌드 리서처", upload_recorder: "업로드 기록원", pop_designer: "POP 디자이너", industry_reader: "업계 독서가", panel_poem: "시 읽는 사람" })[id] || id;
+const NAME = (cfg, id) => cfg.staff[id]?.display || ({ editor: "주간 마케팅 편집장", blog_writer: "블로그 작가", regulation_watcher: "규제 감시자", regulation_reviewer: "규제 검수관", trend_researcher: "쇼츠 트렌드 리서처", upload_recorder: "업로드 기록원", pop_designer: "POP 디자이너", industry_reader: "업계 독서가", panel_poem: "시 읽는 사람", panel_film: "영화 보는 사람", panel_novel: "소설 읽는 사람" })[id] || id;
 const plain = (p) => (p?.rich_text || p?.title || []).map(x => x.plain_text).join("");
 const rich = (t) => [{ type: "text", text: { content: String(t ?? "").slice(0, 1900) } }];
 
@@ -120,6 +120,7 @@ export async function selfReview(cfg) {
 
 // ── 업계 독서가: 6시간마다 읽고 지식 카드로 쪼개 넣기
 const FOCUS = [
+  ["매장 글 문장·톤", "국내 매장(전자담배·소상공인) 블로그에서 사람 말처럼 읽히는 글 — 첫 문장·문단 호흡·구어체 어미·사람이 나오는 장면·마무리 문장을 실제 발췌로. 딱딱한 안내문과 대비되는 예를 반드시 포함."],
   ["매장 블로그·검색", "네이버 블로그·카페에서 전자담배 매장(직영·오프라인) 글이 어떻게 쓰이는지 — 제목·첫 문장·구조·해시태그·사진 구성. 손님이 실제로 검색하는 표현."],
   ["고객 언어·커뮤니티", "커뮤니티(디시·에펨·클리앙 등)·유튜브 댓글에서 성인 흡연자가 매장·기기 관리·응대에 대해 실제로 쓰는 말과 질문."],
   ["규제·금지 사례", "최근 전자담배 광고·표시 규제 뉴스와, 다른 매장 글에서 규제에 걸릴 표현(제품·맛·니코틴·가격·입문·건강)을 쓴 사례 — 우리가 피할 것으로 기록."],
@@ -134,7 +135,7 @@ export async function industry_reader_read(cfg) {
   const known = recent.map(k => k.title).join(" / ").slice(0, 3000);
   const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, "industry_reader", await inject(cfg, "industry_reader", { max: 5 })), tools: ["web_search"], model: cfg.staff.industry_reader.model, max_tokens: 5000,
     dry: { cards: [{ title: "DRY 카드", category: "고객 언어", summary: "테스트", lines: ["블로그"], stores: ["공통"], tags: ["검색어"], confidence: "보통", source: "https://example.com" }] },
-    user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 이번 근무 초점: 「${focusName}」 — ${focus}\n웹 검색으로 최근 자료를 최소 6개 이상 읽고, 읽은 것을 지식 카드 8~12장으로 쪼개세요. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","category":"고객 언어|글 구조·첫 문장|소재·상황|반응 사례|금지 사례|규제·정책","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"stores":["해당 지점 또는 공통"],"tags":["기기관리|찾아오는길|응대|직영신뢰|외국인|지역행사|사진|해시태그|검색어"],"confidence":"높음|보통|낮음","source":"URL"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴 정보는 카드로 만들지 않는다(금지 사례로만 기록). 카드는 사실과 관찰이지 우리 글 초안이 아니다.` });
+    user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 이번 근무 초점: 「${focusName}」 — ${focus}\n웹 검색으로 최근 자료를 최소 6개 이상 읽고, 읽은 것을 지식 카드 8~12장으로 쪼개세요. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","category":"고객 언어|글 구조·첫 문장|소재·상황|반응 사례|금지 사례|규제·정책","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"stores":["해당 지점 또는 공통"],"tags":["기기관리|찾아오는길|응대|직영신뢰|외국인|지역행사|사진|해시태그|검색어"],"confidence":"높음|보통|낮음","source":"URL"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴 정보는 카드로 만들지 않는다(금지 사례로만 기록). 카드는 사실과 관찰이지 우리 글 초안이 아니다. 매 근무 반드시 「글 구조·첫 문장」 분류 카드 2장 이상을 실제 문장 발췌(20~60자 인용)와 함께 만든다 — 작가가 딱딱함을 벗는 데 쓴다.` });
   const cards = (j.cards || []).slice(0, 12); const out = [];
   for (const c of cards) {
     if (!c.title || !c.source) continue;
@@ -142,4 +143,29 @@ export async function industry_reader_read(cfg) {
     out.push(`${c.title} → ${p.url || ""}`);
   }
   return `독서 근무(${focusName}) 카드 ${out.length}장\n${out.join("\n")}`;
+}
+
+
+// ── 관점 패널 자습: 각자 관점의 전문가로서 매일 읽고 카드로 남긴다 (관리자 지시: 시키지 않아도 스스로 공부)
+const PANEL_STUDY = {
+  panel_film:  ["디자인·비주얼", "최근 포스터·키비주얼·매장 POP·타이포·컬러·레이아웃 사례(국내외). 우리 브랜드 무드 4종(glow-dark/pop-purple/holo-pastel/sky-pastel)에 어떻게 붙는지까지."],
+  panel_novel: ["이야기·장면", "사람이 나와서 좋았던 동네 가게·브랜드 콘텐츠, 쇼츠 내러티브 구조, 손님 인물 유형과 실제 상황·표현. 장면 예문 인용."],
+  panel_poem:  ["카피·리듬", "짧고 리듬 있는 헤드라인·간판·POP 문구 사례(국내외), 대구·반복·여백이 살아 있는 한 줄들. 예문 인용, 왜 읽히는지."],
+};
+export async function panel_study(cfg) {
+  const w = isoWeek(new Date(), cfg.week_offset || 0); const out = [];
+  for (const [id, [cat, focus]] of Object.entries(PANEL_STUDY)) {
+    if (!cfg.staff[id]) continue;
+    const me = NAME(cfg, id);
+    const known = DRY ? "" : (await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "직원", select: { equals: me } }] }, 120)).map(k => k.title).join(" / ").slice(0, 2500);
+    try {
+      const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, id, await inject(cfg, id, { max: 5 })), tools: ["web_search"], model: cfg.staff[id].model, max_tokens: 4500,
+        dry: { cards: [{ title: `DRY ${me}`, summary: "t", lines: ["공통"], tags: [], confidence: "보통", source: "https://example.com" }] },
+        user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 자습 시간입니다. 초점: ${focus}\n웹 검색으로 최근 자료 5개 이상 읽고 지식 카드 6~10장으로. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문·수치·색값이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"tags":["해당 태그"],"confidence":"높음|보통|낮음","source":"URL"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴·연기·인물 사진 소재 금지. 카드는 관찰과 근거이지 우리 초안이 아니다.` });
+      let n = 0;
+      for (const c of (j.cards || []).slice(0, 10)) { if (!c.title || !c.source) continue; await createMemory(cfg, { title: c.title, type: "지식 카드", staff: me, category: cat, lines: c.lines?.length ? c.lines : ["공통"], tags: (c.tags || []).slice(0, 4), confidence: c.confidence || "보통", source: c.source, week: w, summary: c.summary || "", body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${c.source}\n- 자습 초점: ${cat}\n- ${kstNow().slice(0, 16)}` }); n++; }
+      out.push(`${me}: 카드 ${n}장`);
+    } catch (e) { out.push(`${me}: 실패 ${e.message.slice(0, 80)}`); }
+  }
+  return `관점 패널 자습\n${out.join("\n")}`;
 }

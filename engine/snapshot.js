@@ -46,7 +46,7 @@ export async function snapshot(cfg) {
     items: items.map(i => ({ id: i.id, t: kst(i.created), title: i.title, status: i.status, line: i.line, type: i.type, author: i.author, stores: i.stores, week: i.week, basis: i.basis, review: i.review, memo: i.memo, url: i.url, file: fileOf(i) })),
     pops, memory,
     meeting,
-    schedule: Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다")).map(j => ({ when: j.kst, who: j.run.map(r => ({ regulation_watcher: "reg", trend_researcher: "trend", editor: "editor", blog_writer: "writer", regulation_reviewer: "reviewer", upload_recorder: "uploader", pop_designer: "pop", panel_poem: "poem", industry_reader: "reader", memory: "reader" })[r.split(":")[0]]).filter(Boolean), what: j.run.map(r => r.split(":")[1]).join(" · ") })),
+    schedule: Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다")).map(j => ({ when: j.kst, who: j.run.map(r => ({ regulation_watcher: "reg", trend_researcher: "trend", editor: "editor", blog_writer: "writer", regulation_reviewer: "reviewer", upload_recorder: "uploader", pop_designer: "pop", panel_poem: "poem", industry_reader: "reader", memory: "reader", panel: "film", panel_film: "film", panel_novel: "novel" })[r.split(":")[0]]).filter(Boolean), what: j.run.map(r => r.split(":")[1]).join(" · ") })),
     next_shift: { at: new Date(Date.now() + 3600e3).toISOString(), label: "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서" },
   };
   fs.mkdirSync(path.join(ROOT, "office"), { recursive: true });

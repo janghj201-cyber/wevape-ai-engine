@@ -9,6 +9,8 @@ let WEEK_OFFSET = 0; const week = () => isoWeek(new Date(), WEEK_OFFSET);
 const byWeek = (items, w) => items.filter(i => i.week === w);
 const latest = (items, pred) => items.filter(pred).sort((a, b) => b.created.localeCompare(a.created))[0];
 
+import fs from "node:fs"; import path from "node:path";
+const readOpt = (cfg, f) => { try { return fs.readFileSync(path.join(cfg.dir, f), "utf8"); } catch { return ""; } };
 async function ctx() {  const items = await N.queryContent(undefined, [{ timestamp: "created_time", direction: "ascending" }]); return { items, w: week() }; }
 async function storeMaster(cfg) {
   try { const r = await fetch(cfg.store_master_url); const j = await r.json(); return (j.stores || []).map(s => `${s.store} · ${s.addr} · ${s.phone}`).join("\n"); }
@@ -87,11 +89,26 @@ export async function blog_writer_write(cfg, maxPosts = 3) {
   const todo = cards.filter(c => !done.has(c.store)).sort((a, b) => a.priority - b.priority).slice(0, maxPosts);
   if (!todo.length) return `${w} 모든 지점 글 작성 완료`;
   const stores = await storeMaster(cfg); const out = [];
+  const tone = readOpt(cfg, "tone_guide.md"), samples = readOpt(cfg, "tone_samples.md");
+  const toneBlock = `\n\n# 톤 가이드 (반드시)\n${tone}${samples ? `\n\n# 우리 톤 표본 (관리자가 직접 쓴 글 — 문장 호흡을 이대로)\n${samples.slice(0, 6000)}` : ""}`;
   for (const c of todo) {
-    const body = await ask({ system: systemPrompt(cfg, "blog_writer", await M.inject(cfg, "blog_writer", { line: "블로그", stores: [c.store], topic: `${c.topic} ${c.angle}` })), model: cfg.staff.blog_writer.model, max_tokens: 7000,
-      user: `기획안 ${w} 카드로 블로그 글 1편을 쓰세요.\n카드: ${JSON.stringify(c, null, 0)}\n지점 정보(허브 원본, 그대로 사용):\n${stores}\n\n출력(마크다운): 첫 줄 "# [지점명] 제목" / 본문 1,500~2,000자 모바일 문단 / 📷 사진 지시 8~12개(시간대·위치·카메라 높이·피사체·빼야 할 것) / 하단 신뢰형 고정 멘트 + 준법 문장 + 주소·전화 / 해시태그 6~8개 / "## 작가 자체 점검" 10항목 ○×.` });
+    const sys = systemPrompt(cfg, "blog_writer", await M.inject(cfg, "blog_writer", { line: "블로그", stores: [c.store], topic: `${c.topic} ${c.angle}` }) + toneBlock);
+    const spec = `출력(마크다운): 첫 줄 "# [지점명] 제목"(톤 가이드 제목 규격) / 본문 1,500~2,000자 모바일 문단 / 📷 사진 지시 8~12개(시간대·위치·카메라 높이·피사체·빼야 할 것) / 하단 신뢰형 고정 멘트 + 준법 문장 + 주소·전화 / 해시태그 6~8개 / "## 작가 자체 점검" 10항목 ○×.`;
+    const draft = await ask({ system: sys, model: cfg.staff.blog_writer.model, max_tokens: 7000,
+      user: `기획안 ${w} 카드로 블로그 글 1편 초안을 쓰세요. 안내문이 아니라 사람 말로.\n카드: ${JSON.stringify(c, null, 0)}\n지점 정보(허브 원본, 그대로 사용):\n${stores}\n\n${spec}` });
+    // 대화 단계: 업계 독서가가 초안을 읽고 딱딱한 문장·방향을 돌려준다 → 작가가 고쳐 쓴다
+    let body = draft, fb = null;
+    try {
+      fb = await askJSON({ system: systemPrompt(cfg, "industry_reader", await M.inject(cfg, "industry_reader", { line: "블로그", stores: [c.store], topic: c.topic, max: 12 }) + toneBlock), model: cfg.staff.industry_reader.model, max_tokens: 1200, dry: { stiff: [], directions: ["DRY"], good: [] },
+        user: `블로그 작가의 초안입니다. 업계 글을 많이 읽은 눈으로 봐 주세요. 규제는 검수관 몫이니 보지 말고 "읽히는가"만.\n\n${draft.slice(0, 7000)}\n\nJSON: {"stiff":[{"quote":"안내문처럼 읽히는 문장 그대로 인용","why":"왜","fix":"이렇게(예문)"}],"directions":["글 전체에서 고칠 방향 2~3개, 지식 카드 근거가 있으면 카드 제목 인용"],"good":["살릴 문장 1~2개"]}\n최대 stiff 4개.` });
+      if (fb && (fb.stiff?.length || fb.directions?.length)) {
+        body = await ask({ system: sys, model: cfg.staff.blog_writer.model, max_tokens: 7000,
+          user: `초안에 대해 업계 독서가가 아래 피드백을 줬습니다. 반영해서 같은 형식으로 다시 쓰세요. 살릴 문장은 살리고, 규제·필수 요소는 그대로.\n\n초안:\n${draft.slice(0, 7000)}\n\n독서가 피드백:\n${JSON.stringify(fb, null, 1).slice(0, 3000)}\n\n${spec}` });
+      }
+    } catch (e) { console.error("독서가 피드백 단계 실패:", e.message); }
     const title = (body.match(/^#\s*(.+)$/m) || [, `[${c.store}] ${c.topic}`])[1].trim();
-    const p = await N.createContent({ title, status: "검수중", line: "블로그", type: c.type === "리뷰형" ? "리뷰형" : "후기형", team: "작성", stores: [c.store], author: "블로그 작가", week: w, basis: `기획안 ${w} 카드(${c.store}) · 엔진 자동 작성`, body });
+    const fbMd = fb ? `\n\n---\n## 업계 독서가 피드백 (초안 → 수정)\n${(fb.stiff || []).map(x => `- "${x.quote}" → ${x.fix} (${x.why})`).join("\n")}\n${(fb.directions || []).map(d => `- 방향: ${d}`).join("\n")}\n${(fb.good || []).map(g => `- 살림: ${g}`).join("\n")}` : "";
+    const p = await N.createContent({ title, status: "검수중", line: "블로그", type: c.type === "리뷰형" ? "리뷰형" : "후기형", team: "작성", stores: [c.store], author: "블로그 작가", week: w, basis: `기획안 ${w} 카드(${c.store}) · 초안→독서가 피드백→수정 · 엔진 자동 작성`, body: body + fbMd });
     out.push(`${c.store}: ${p.url}`);
   }
   return `작성 ${out.length}편 → 검수중\n${out.join("\n")}`;
@@ -160,6 +177,6 @@ const _R = {
   "regulation_reviewer:review": regulation_reviewer_review, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
   "pop_designer:make": pop_designer_make,
-  "industry_reader:read": M.industry_reader_read, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
+  "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
 };
 export const REGISTRY = Object.fromEntries(Object.entries(_R).map(([k, f]) => [k, (cfg, ...a) => { WEEK_OFFSET = cfg.week_offset || 0; return f(cfg, ...a); }]));
