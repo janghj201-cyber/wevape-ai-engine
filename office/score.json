@@ -1,0 +1,31 @@
+{
+ "week": "2026-W35",
+ "blog_quality": 35,
+ "pop_quality": 30,
+ "execution": 0,
+ "regulation": 100,
+ "learning": 90,
+ "collaboration": 15,
+ "counts": {
+  "items": 112,
+  "week_items": 103,
+  "approved": 4,
+  "published": 0,
+  "knowledge": 80,
+  "lessons": 23,
+  "repeat": 1,
+  "standups": 0,
+  "waiting": 2
+ },
+ "total": 45,
+ "weights": {
+  "blog_quality": 25,
+  "pop_quality": 20,
+  "execution": 15,
+  "regulation": 15,
+  "learning": 15,
+  "collaboration": 10
+ },
+ "at": "2026-08-19T16:57",
+ "url": "https://app.notion.com/p/2026-W35-45-100-3c109730b9068141baf2f8e7586c825c"
+}
