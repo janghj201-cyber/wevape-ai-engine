@@ -9,6 +9,7 @@ on:
     - cron: "30 8 * * 5"     # 금 17:30 KST 주간 발행 결과 + 편집장 결과 메모
     - cron: "*/10 * * * *"   # 10분마다 이벤트 폴링 (승인되면 즉시 다음 단계)
     - cron: "0 */6 * * *"    # 6시간마다 업계 독서가 (지식 카드)
+    - cron: "0 2,14 * * *"   # 11:00·23:00 KST 관점 패널 자습
   workflow_dispatch:
     inputs:
       job:
@@ -47,6 +48,7 @@ jobs:
             "0 8 * * *")  echo "job=daily_upload" >> $GITHUB_OUTPUT;;
             "30 8 * * 5") echo "job=friday_wrap" >> $GITHUB_OUTPUT;;
             "0 */6 * * *") echo "job=reader_shift" >> $GITHUB_OUTPUT;;
+            "0 2,14 * * *") echo "job=panel_study" >> $GITHUB_OUTPUT;;
             *)            echo "job=poll_events" >> $GITHUB_OUTPUT;;
           esac
       - name: 출근
