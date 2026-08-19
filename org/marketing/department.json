@@ -76,12 +76,33 @@
       "file": "staff/panel_poem.md",
       "team": "관점패널",
       "display": "시 읽는 사람",
-      "model": "claude-sonnet-4-5"
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
     },
     "industry_reader": {
       "file": "staff/industry_reader.md",
       "team": "트렌드조사",
       "display": "업계 독서가",
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
+    },
+    "panel_film": {
+      "file": "staff/panel_film.md",
+      "team": "관점패널",
+      "display": "영화 보는 사람",
+      "model": "claude-sonnet-4-5",
+      "tools": [
+        "web_search"
+      ]
+    },
+    "panel_novel": {
+      "file": "staff/panel_novel.md",
+      "team": "관점패널",
+      "display": "소설 읽는 사람",
       "model": "claude-sonnet-4-5",
       "tools": [
         "web_search"
@@ -102,6 +123,13 @@
       "kst": "6시간마다 (03·09·15·21시)",
       "run": [
         "industry_reader:read"
+      ]
+    },
+    "panel_study": {
+      "cron": "0 2,14 * * *",
+      "kst": "매일 11:00·23:00",
+      "run": [
+        "panel:study"
       ]
     },
     "monday_meeting": {
