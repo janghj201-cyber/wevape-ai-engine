@@ -76,6 +76,14 @@ a{color:inherit}
 .person.walk svg{animation:bob .6s infinite alternate}
 @keyframes bob{from{transform:translateY(0)}to{transform:translateY(-3px)}}
 .ceo-chair{position:absolute;left:50%;top:6px;transform:translateX(-50%)}
+.gauge{display:flex;align-items:center;gap:14px}
+.gauge .num{font-size:34px;font-weight:900;line-height:1}
+.gauge .num small{font-size:13px;color:var(--muted);font-weight:600}
+.bars{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:11px}
+.bar{display:grid;grid-template-columns:52px 1fr 28px;gap:6px;align-items:center}
+.bar i{display:block;height:8px;border-radius:4px;background:#e9e2d5;overflow:hidden}
+.bar i b{display:block;height:100%;background:var(--navy)}
+.bar em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
 
 /* ── 복도 ── */
 .hall{position:relative;border-radius:18px;overflow:hidden;border:2px solid #b8a27a;background:linear-gradient(#f3ecdd 0 55%,#dcc9a6 55% 100%);min-height:520px;padding:18px}
@@ -232,6 +240,7 @@ const cnt = s=>items.filter(i=>i.status===s).length;
       </div>
       <div class="side">
         <a class="doorbtn" href="#hall"><span class="d"></span><span>복도로 나가기<small>부서 방으로 이동 · ${D.departments.filter(d=>d.active).length}개 부서 근무 중</small></span></a>
+        <div class="card"><h3>🎯 회사 점수 — 목표 100</h3>${(()=>{const S=D.score; if(!S) return '<div style="color:var(--muted)">첫 회고(금 17:30) 후 표시</div>'; const A=[["글 품질",S.blog_quality,25],["POP·비주얼",S.pop_quality,20],["실행·발행",S.execution,15],["규제 안전",S.regulation,15],["학습·성장",S.learning,15],["협업·자율",S.collaboration,10]]; return `<div class="gauge"><div class="num">${S.total}<small> /100</small></div><div class="bars">${A.map(([n,v,w])=>`<div class="bar"><span>${n}</span><i><b style="width:${v}%"></b></i><em>${v}</em></div>`).join("")}</div></div><div style="margin-top:6px;color:var(--muted)">${S.at||""} 기준 · 승인 메모에 「점수: NN」을 적으면 그 점수가 반영됩니다${S.url?` · <a href="${S.url}" target="_blank">스코어카드</a>`:""}</div>`;})()}</div>
         <div class="card brief"><h3>📋 오늘 브리핑 (${today})</h3><ul>${byDept}</ul></div>
         <div class="card brief"><h3>📌 최근 결정 (관리자 메모)</h3><ul>${recent}</ul><div style="margin-top:6px;color:var(--muted)">반려·메모는 10분 안에 해당 직원의 교훈 카드가 됩니다.</div></div>
         <div class="card brief"><h3>📚 조직의 기억</h3><ul><li>지식 카드 <b>${MEMc.knowledge}</b> · 업무 노트 <b>${MEMc.notes}</b> · 교훈 <b>${MEMc.lessons}</b> · 개정 제안 <b>${MEMc.proposals}</b></li></ul></div>
