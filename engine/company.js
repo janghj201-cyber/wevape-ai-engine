@@ -91,6 +91,15 @@ export async function weekly_retro(cfg) {
   const opText = ops.map(o => `## ${o.me}\n- 회고: ${o.review}\n- 필요한 것: ${o.blocked_by || "-"}\n${(o.goals || []).map(g => `- 목표: ${g.goal} / 계획: ${g.plan} / 확인: ${g.metric}`).join("\n")}`).join("\n\n");
   const synth = await ask({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 5 })) + `\n\n# 스코어카드\n${card}`, model: cfg.staff.editor.model, max_tokens: 2500,
     user: `주간 회고를 취합해 「주간 스코어카드 ${w}」를 쓰세요. 구성: 1) 점수 표(영역·점수·지난주 대비·근거) 2) 이번 주 가장 큰 병목 3개와 담당 3) 다음 주 조직 목표 3개(직원 목표를 묶어서) 4) 관리자에게 필요한 것 5) 100점까지의 거리와 다음 10점을 올릴 방법.\n현재 점수: 총 ${m.total} — 글 ${m.blog_quality} / POP ${m.pop_quality} / 발행 ${m.execution} / 규제 ${m.regulation} / 학습 ${m.learning} / 협업 ${m.collaboration}\n집계: ${JSON.stringify(m.counts)}\n\n직원 회고:\n${opText}` });
+  // 인력 부족 → 채용 제안 (관리자 결재함)
+  try {
+    const h = await askJSON({ system: systemPrompt(cfg, "editor", "") + `\n\n# 현재 직원\n${ids.map(i => NAME(cfg, i)).join(", ")}`, model: cfg.staff.editor.model, max_tokens: 900, dry: { hires: [] },
+      user: `회고 결과와 병목을 보고, 지금 조직에 없어서 점수가 안 오르는 직무가 있으면 채용 제안을 JSON으로: {"hires":[{"role":"직함(한국어)","why":"어떤 병목을 푸는가(점수 영역 연결)","does":"매일/매주 무엇을 하나 2~3줄","inputs":"무엇을 읽나","outputs":"무엇을 내나","cost":"월 예상 비용(달러, 대략)"}]}\n정말 필요한 것만 0~2명. 기존 직원 정의서 수정으로 되는 건 제안하지 않는다.\n\n${opText.slice(0, 5000)}\n점수: ${JSON.stringify(m)}` });
+    for (const hr of (h.hires || []).slice(0, 2)) {
+      if (!hr.role) continue;
+      await N.createContent({ title: `채용 제안 ${w} — ${hr.role}`, status: "승인 대기", line: "보고", type: "채용 제안", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `주간 회고 병목 분석 · 관리자 승인 시 정의서 작성·시계 배정`, body: `# 채용 제안: ${hr.role}\n\n- 왜: ${hr.why}\n- 하는 일: ${hr.does}\n- 읽는 것: ${hr.inputs}\n- 내놓는 것: ${hr.outputs}\n- 예상 비용: ${hr.cost}\n\n승인하시면 정의서를 쓰고 근무 시계에 넣습니다. 반려면 사유를 메모에 남겨 주세요.` });
+    }
+  } catch (e) { console.error("채용 제안 실패:", e.message); }
   const p = await N.createContent({ title: `주간 스코어카드 ${w} — ${m.total}/100`, status: "승인", line: "보고", type: "스코어카드", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `자동 지표 + 직원 ${ops.length}명 회고 + 편집장 취합 · 총점 ${m.total}`, body: `${synth}\n\n---\n## 원자료\n\`\`\`json\n${JSON.stringify(m, null, 1)}\n\`\`\`\n\n${opText}` });
   fs.mkdirSync(path.join(ROOT, "office"), { recursive: true });
   fs.writeFileSync(path.join(ROOT, "office/score.json"), JSON.stringify({ ...m, at: kstNow().slice(0, 16), url: p.url }, null, 1));
@@ -101,4 +110,20 @@ export async function weekly_retro(cfg) {
 export async function currentScore(cfg) {
   try { const s = JSON.parse(fs.readFileSync(path.join(ROOT, "office/score.json"), "utf8")); if (Date.now() - new Date(s.at).getTime() < 8 * 86400e3) return s; } catch {}
   try { return { ...(await metrics(cfg)), at: kstNow().slice(0, 16) }; } catch { return null; }
+}
+
+
+// ── 대표실에서 보낸 채점·결재 적용 (workflow_dispatch inputs → 노션)
+export async function score_apply(cfg) {
+  const id = (process.env.INPUT_PAGE_ID || "").replace(/[^0-9a-f-]/gi, ""); const score = process.env.INPUT_SCORE || ""; const decision = process.env.INPUT_DECISION || ""; const memo = process.env.INPUT_MEMO || "";
+  if (!id) return "page_id 없음";
+  const items = DRY ? [] : await N.queryContent(undefined);
+  const it = items.find(i => i.id.replace(/-/g, "") === id.replace(/-/g, ""));
+  const prev = it?.memo ? it.memo + " / " : "";
+  const stamp = kstNow().slice(5, 16).replace("T", " ");
+  const newMemo = `${prev}${score ? `점수: ${score} ` : ""}${memo ? memo + " " : ""}(대표실 ${stamp})`.trim();
+  const patch = { memo: newMemo };
+  if (decision === "승인" || decision === "반려") patch.status = decision;
+  await N.updateContent(id, patch);
+  return `적용: ${it?.title || id} → ${decision || "점수만"} ${score ? score + "점" : ""}`;
 }

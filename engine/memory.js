@@ -153,7 +153,7 @@ export async function industry_reader_read(cfg) {
 
 // ── 관점 패널 자습: 각자 관점의 전문가로서 매일 읽고 카드로 남긴다 (관리자 지시: 시키지 않아도 스스로 공부)
 const PANEL_STUDY = {
-  panel_film:  ["디자인·비주얼", "최근 포스터·키비주얼·매장 POP·타이포·컬러·레이아웃 사례(국내외). 우리 브랜드 무드 4종(glow-dark/pop-purple/holo-pastel/sky-pastel)에 어떻게 붙는지까지."],
+  panel_film:  ["디자인·비주얼", "① 최근 포스터·키비주얼·매장 POP·타이포·컬러·레이아웃 사례(국내외) ② 우리 브랜드 자산 찾기: 위베이프(wevape)·버블몬(bubblemon) 공식 이미지·로고·기기 사진 URL을 웹에서 찾아 카드로(분류 그대로, 제목 앞에 [브랜드 자산], summary에 이미지 직접 URL과 배경 투명 여부) — 관리자가 주지 않아도 스스로 확보 ③ 우리 무드 4종(glow-dark/pop-purple/holo-pastel/sky-pastel)에 어떻게 붙는지."],
   panel_novel: ["이야기·장면", "사람이 나와서 좋았던 동네 가게·브랜드 콘텐츠, 쇼츠 내러티브 구조, 손님 인물 유형과 실제 상황·표현. 장면 예문 인용."],
   panel_poem:  ["카피·리듬", "짧고 리듬 있는 헤드라인·간판·POP 문구 사례(국내외), 대구·반복·여백이 살아 있는 한 줄들. 예문 인용, 왜 읽히는지."],
 };

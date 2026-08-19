@@ -44,7 +44,7 @@ export async function snapshot(cfg) {
   ];
   const nextJob = Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다"))[0];
   const snap = {
-    generated_at: kstNow().slice(0, 16), week: isoWeek(new Date(), cfg.week_offset || 0), manager: cfg.manager, staff, author_map: IDS, departments, pages_url: cfg.pages_url || "",
+    generated_at: kstNow().slice(0, 16), week: isoWeek(new Date(), cfg.week_offset || 0), manager: cfg.manager, staff, author_map: IDS, departments, pages_url: cfg.pages_url || "", repo: cfg.github_repo || "",
     items: items.map(i => ({ id: i.id, t: kst(i.created), title: i.title, status: i.status, line: i.line, type: i.type, author: i.author, stores: i.stores, week: i.week, basis: i.basis, review: i.review, memo: i.memo, url: i.url, file: fileOf(i) })),
     pops, memory, score,
     meeting,
