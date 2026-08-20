@@ -58,5 +58,25 @@
   "file": "pop/2026-W35-검단-01.html",
   "t": "2026-08-19T07:36:53.601Z",
   "status": "검수중"
+ },
+ {
+  "notion_id": "3c209730-b906-8120-9868-d6497eace249",
+  "notion_url": "https://app.notion.com/p/POP-3c209730b90681209868d6497eace249",
+  "store": "계산",
+  "week": "2026-W35",
+  "title": "직영점에서 직접 안내",
+  "file": "pop/2026-W35-계산-01.html",
+  "t": "2026-08-20T03:42:20.204Z",
+  "status": "검수중"
+ },
+ {
+  "notion_id": "3c209730-b906-811a-b335-cb0a932c90b2",
+  "notion_url": "https://app.notion.com/p/POP-3-3c209730b906811ab335cb0a932c90b2",
+  "store": "신중동",
+  "week": "2026-W35",
+  "title": "신중동역 3번 출구 본사 직영매장",
+  "file": "pop/2026-W35-신중동-01.html",
+  "t": "2026-08-20T03:42:49.735Z",
+  "status": "검수중"
  }
 ]
