@@ -18,6 +18,8 @@
     "상동"
   ],
   "store_master_url": "https://raw.githubusercontent.com/ceohj0101/wevape-hub/main/data.json",
+  "materials_page": "3c509730b906815a88b7d4aa256eaae4",
+  "materials_url": "https://app.notion.com/p/3c509730b906815a88b7d4aa256eaae4",
   "rules": [
     "../common/rules_blog_regulation.md"
   ],
