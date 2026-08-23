@@ -85,7 +85,11 @@ export async function pop_designer_make(cfg, maxPops = 2) {
       try {
         critique = await askJSON({ system: systemPrompt(cfg, "panel_film", await M.inject(cfg, "panel_film", { line: "POP", max: 10 }) + `\n\n# 브랜드 비주얼 가이드\n${brand}`), model: cfg.staff.panel_film.model, max_tokens: 800, dry: { verdict: "수정", notes: ["DRY"], fixes: {} },
           user: `POP 디자이너의 스펙입니다. 화면 구성·색·타이포·시선 흐름 관점에서 리뷰하세요. 규제는 보지 말고 "3m 밖에서 한 번에 읽히고 브랜드 결에 맞는가"만.\n${JSON.stringify(spec, null, 1)}\n\nJSON: {"verdict":"통과|수정","notes":["구체적 지적 2~4개(무엇이 약하고 왜)"],"fixes":{"바꿀 필드명":"바꿀 값"}}\nfixes는 스펙 필드명 그대로(headline은 배열). 글자 수 제한 유지.` });
-        if (critique?.verdict === "수정" && critique.fixes && typeof critique.fixes === "object") spec = { ...spec, ...critique.fixes };
+        if (critique?.verdict === "수정" && critique.fixes && typeof critique.fixes === "object") {
+          const keepHero = spec.hero_prompt;
+          spec = { ...spec, ...critique.fixes };
+          if (!spec.hero_prompt && keepHero) spec.hero_prompt = keepHero; // 브랜드 가이드 v0.2: hero_prompt 비우는 수정 금지 — 교체만 허용
+        }
       } catch (e) { console.error("panel_film 리뷰 실패:", e.message); }
     }
     if (!MOOD_KEYS.includes(spec.mood)) spec.mood = MOOD_KEYS[(idx.length) % MOOD_KEYS.length];
@@ -99,6 +103,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
         const imgName = `${w}-${store}-${String(idx.length + 1).padStart(2, "0")}.png`;
         const out = path.join(ROOT, "office/pop/img", imgName);
         let ok = await genImage(wrap(spec.hero_prompt), out);
+        if (!ok) console.error("이미지 생성 응답에 이미지 없음(텍스트 히어로로 대체)");
         // 영화 보는 사람이 '생성된 실제 이미지'를 눈으로 보고 검수 → 미달이면 개선 프롬프트로 1회 재생성
         if (ok && cfg.staff.panel_film) {
           try {
