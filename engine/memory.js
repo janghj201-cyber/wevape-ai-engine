@@ -4,9 +4,11 @@
 //   교훈 카드: 관리자 반려·메모를 10분 안에 감지해 해당 직원 노트로
 //   개정 제안: 금요일 각 직원이 자기 정의서에서 바꿀 문장 제안 → 대표실 결재함
 // env: NOTION_MEMORY_DB (없으면 department.json 의 memory_db)
+import fs from "node:fs"; import path from "node:path";
 import { ask, askJSON } from "./claude.js";
 import * as N from "./notion.js";
 import { isoWeek, kstNow } from "./org.js";
+const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 
 const DRY = process.env.DRY_RUN === "1";
 const dbId = (cfg) => process.env.NOTION_MEMORY_DB || cfg.memory_db;
@@ -153,7 +155,7 @@ export async function industry_reader_read(cfg) {
 
 // ── 관점 패널 자습: 각자 관점의 전문가로서 매일 읽고 카드로 남긴다 (관리자 지시: 시키지 않아도 스스로 공부)
 const PANEL_STUDY = {
-  panel_film:  ["디자인·비주얼", "① 최근 포스터·키비주얼·매장 POP·타이포·컬러·레이아웃 사례(국내외) ② 우리 브랜드 자산 찾기: 위베이프(wevape)·버블몬(bubblemon) 공식 이미지·로고·기기 사진 URL을 웹에서 찾아 카드로(분류 그대로, 제목 앞에 [브랜드 자산], summary에 이미지 직접 URL과 배경 투명 여부) — 관리자가 주지 않아도 스스로 확보 ③ 우리 무드 4종(glow-dark/pop-purple/holo-pastel/sky-pastel)에 어떻게 붙는지."],
+  panel_film:  ["디자인·비주얼", "① 최근 포스터·키비주얼·매장 POP·타이포·컬러·레이아웃 사례(국내외) — 특히 '전자담배 매장'·'베이프샵' 오프라인 포스터·간판·매장 사진이 실제로 어떻게 생겼는지 ② 우리 브랜드 자산 찾기: 위베이프(wevape)·버블몬(bubblemon) 공식 사이트·네이버 플레이스·인스타그램 주소와 공식 이미지·로고·기기 사진 URL을 웹에서 찾아 카드로(제목 앞에 [브랜드 자산], summary에 주소·이미지 직접 URL) — 관리자가 주지 않아도 스스로 확보 ③ 우리 무드 4종(glow-dark/pop-purple/holo-pastel/sky-pastel)에 어떻게 붙는지 ④ 첨부로 받은 이미지는 반드시 직접 보고 관찰을 기록."],
   panel_novel: ["이야기·장면", "사람이 나와서 좋았던 동네 가게·브랜드 콘텐츠, 쇼츠 내러티브 구조, 손님 인물 유형과 실제 상황·표현. 장면 예문 인용."],
   panel_poem:  ["카피·리듬", "짧고 리듬 있는 헤드라인·간판·POP 문구 사례(국내외), 대구·반복·여백이 살아 있는 한 줄들. 예문 인용, 왜 읽히는지."],
 };
@@ -163,10 +165,25 @@ export async function panel_study(cfg) {
     if (!cfg.staff[id]) continue;
     const me = NAME(cfg, id);
     const known = DRY ? "" : (await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "직원", select: { equals: me } }] }, 120)).map(k => k.title).join(" / ").slice(0, 2500);
+    // 영화 보는 사람은 '직접 눈으로' 본다: 브랜드 참고 포스터 2장(교대) + 우리가 만든 최신 히어로 이미지
+    let imgs = [], imgNote = "";
+    if (id === "panel_film") {
+      try {
+        const refDir = path.join(ROOT, "office/brand/ref");
+        const refs = fs.readdirSync(refDir).filter(f => /\.(jpe?g|png|webp)$/i.test(f)).sort();
+        const day = Math.floor(Date.now() / 86400e3);
+        const pick = refs.length ? [refs[day % refs.length], refs[(day + 5) % refs.length]].filter((v, i, a) => a.indexOf(v) === i) : [];
+        imgs = pick.map(f => path.join(refDir, f));
+        const heroDir = path.join(ROOT, "office/pop/img");
+        const heroes = fs.existsSync(heroDir) ? fs.readdirSync(heroDir).filter(f => f.endsWith(".png")).sort() : [];
+        if (heroes.length) imgs.push(path.join(heroDir, heroes[heroes.length - 1]));
+        imgNote = `\n첨부 이미지: 브랜드 참고 포스터 ${pick.join(", ")}${heroes.length ? ` + 우리 엔진이 최근 생성한 히어로 이미지(${heroes[heroes.length - 1]})` : ""}. 첨부를 직접 보고 — 참고 포스터에서 색·타이포·구도·피사체 처리의 구체 관찰 카드를, 그리고 우리 생성 이미지가 참고 대비 무엇이 부족한지(피사체 유무·밀도·계절감·조명) 비교 카드를 최소 2장 만든다. 이런 카드의 source는 "repo:office/brand/ref/파일명" 형식으로 쓴다.`;
+      } catch (e) { console.error("panel_film 이미지 첨부 실패:", e.message); }
+    }
     try {
-      const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, id, await inject(cfg, id, { max: 5 })), tools: ["web_search"], model: cfg.staff[id].model, max_tokens: 4500,
+      const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, id, await inject(cfg, id, { max: 5 })), tools: ["web_search"], model: cfg.staff[id].model, max_tokens: 4500, images: imgs,
         dry: { cards: [{ title: `DRY ${me}`, summary: "t", lines: ["공통"], tags: [], confidence: "보통", source: "https://example.com" }] },
-        user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 자습 시간입니다. 초점: ${focus}\n웹 검색으로 최근 자료 5개 이상 읽고 지식 카드 6~10장으로. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문·수치·색값이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"tags":["해당 태그"],"confidence":"높음|보통|낮음","source":"URL"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴·연기·인물 사진 소재 금지. 카드는 관찰과 근거이지 우리 초안이 아니다.` });
+        user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 자습 시간입니다. 초점: ${focus}${imgNote}\n웹 검색으로 최근 자료 5개 이상 읽고 지식 카드 6~10장으로. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문·수치·색값이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"tags":["해당 태그"],"confidence":"높음|보통|낮음","source":"URL 또는 repo:경로"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴·연기·인물 사진 소재 금지. 카드는 관찰과 근거이지 우리 초안이 아니다.` });
       let n = 0;
       for (const c of (j.cards || []).slice(0, 10)) { if (!c.title || !c.source) continue; await createMemory(cfg, { title: c.title, type: "지식 카드", staff: me, category: cat, lines: c.lines?.length ? c.lines : ["공통"], tags: (c.tags || []).slice(0, 4), confidence: c.confidence || "보통", source: c.source, week: w, summary: c.summary || "", body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${c.source}\n- 자습 초점: ${cat}\n- ${kstNow().slice(0, 16)}` }); n++; }
       out.push(`${me}: 카드 ${n}장`);

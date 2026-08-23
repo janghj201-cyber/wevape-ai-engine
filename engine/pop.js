@@ -45,6 +45,8 @@ li:before{content:"";position:absolute;left:0;top:3.5mm;width:5.5mm;height:5.5mm
 // ── POP 디자이너 근무: 승인된 이번 주 기획안 카드(또는 지점 목록)로 POP 최대 N장
 export async function pop_designer_make(cfg, maxPops = 2) {
   const w = isoWeek(new Date(), cfg.week_offset || 0);
+  const kmon = new Date(Date.now() + 9 * 3600e3).getUTCMonth() + 1;
+  const season = [12, 1, 2].includes(kmon) ? "겨울" : kmon <= 5 ? "봄" : kmon <= 8 ? "여름" : "가을";
   const items = await N.queryContent(undefined, [{ timestamp: "created_time", direction: "ascending" }]);
   const donePop = new Set(items.filter(i => i.line === "POP" && i.week === w).flatMap(i => i.stores));
   const plan = items.filter(i => i.type === "기획안" && i.status === "승인" && i.week === w).slice(-1)[0];
@@ -69,7 +71,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const usedMoods = items.filter(i => i.line === "POP" && i.week === w).map(i => (i.basis.match(/mood=([a-z-]+)/) || [])[1]).filter(Boolean);
     const dsys = systemPrompt(cfg, "pop_designer", await M.inject(cfg, "pop_designer", { line: "POP", stores: [store] }) + `\n\n# 브랜드 비주얼 가이드 (반드시)\n${brand}`);
     const specPrompt = `${store}점 A4 세로 POP 1장 스펙(v2)을 JSON으로:
-{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","hero_prompt":"이미지 생성용 히어로 프롬프트(영문 1~2문장 — 무드·소재·조명·구도만. 사람·연기·제품 패키지·글자 금지)","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
+{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","hero_prompt":"포스터 '전체 배경'이 될 사진 프롬프트(영문 2~3문장). 반드시 구체적 피사체·장면이 있어야 한다 — 예: 밤거리의 네온 반사, 유리 진열장과 따뜻한 카운터 조명, 젖은 아스팔트 위 보라 네온, 여름 저녁 하늘과 간판 실루엣. 지금은 ${kmon}월(${season}) — 계절감을 맞춘다. 빈 배경·텍스처만·파티클만은 실격. 금지: 사람, 연기·증기, 제품·패키지, 글자·로고","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
 헤드라인 후보(시 읽는 사람): ${JSON.stringify(cands.candidates || [])} — 후보 중 리듬 있는 것을 2줄로 쪼개거나 다듬어 쓴다. 위치명·지점명만 있는 헤드라인 금지.
 이번 주 이미 쓴 무드(중복 금지): ${usedMoods.join(", ") || "없음"}
 지점: ${sm.name} / ${sm.addr} / ${sm.phone}
@@ -89,20 +91,34 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     if (!MOOD_KEYS.includes(spec.mood)) spec.mood = MOOD_KEYS[(idx.length) % MOOD_KEYS.length];
     spec.store_name = `위베이프 ${store}점`; spec.store_addr = sm.addr; spec.store_phone = sm.phone;
     const devPath = path.join(ROOT, "office/brand/device.png");
-    let heroLocal = null;
+    let heroLocal = null, imgReview = null;
     if (hasImageGen() && spec.hero_prompt) {
+      const wrap = (p) => `${p}. Full-bleed vertical A4 poster background photograph, ${spec.mood} mood, accent color ${spec.accent}. A clear recognizable subject or scene with depth — never an empty texture or plain particle background. Cinematic lighting, rich color, keep the upper third relatively calm for a headline overlay. No text or letters, no people, no smoke or vapor, no product packaging or branded labels.`;
       try {
         fs.mkdirSync(path.join(ROOT, "office/pop/img"), { recursive: true });
         const imgName = `${w}-${store}-${String(idx.length + 1).padStart(2, "0")}.png`;
-        const ok = await genImage(`${spec.hero_prompt}. Vertical poster hero image for an A4 print, ${spec.mood} mood, accent color ${spec.accent}. No text, no letters, no people, no smoke or vapor, no product packaging or branded labels. High-end commercial studio photography, clean composition, lots of negative space at top.`, path.join(ROOT, "office/pop/img", imgName));
+        const out = path.join(ROOT, "office/pop/img", imgName);
+        let ok = await genImage(wrap(spec.hero_prompt), out);
+        // 영화 보는 사람이 '생성된 실제 이미지'를 눈으로 보고 검수 → 미달이면 개선 프롬프트로 1회 재생성
+        if (ok && cfg.staff.panel_film) {
+          try {
+            imgReview = await askJSON({ system: systemPrompt(cfg, "panel_film"), model: cfg.staff.panel_film.model, max_tokens: 700, images: [out],
+              dry: { verdict: "통과", why: "DRY", better_prompt: "" },
+              user: `방금 생성된 POP 히어로 이미지입니다(포스터 전체 배경으로 사용). 평가 기준: ① 3m 밖에서 시선을 잡는 분명한 피사체·장면이 있는가(거의 빈 배경이면 무조건 재생성) ② ${spec.mood} 무드와 포인트색 ${spec.accent}에 맞는가 ③ 지금 계절(${kmon}월·${season})에 맞는가 — 계절이 어긋나면(예: 여름에 눈꽃) 재생성 ④ 사람·연기·제품·글자가 없는가.\nJSON: {"verdict":"통과|재생성","why":"한 줄 근거","better_prompt":"재생성이면 문제를 고친 영문 프롬프트 2~3문장, 통과면 빈칸"}` });
+            if (imgReview?.verdict === "재생성" && imgReview.better_prompt) {
+              const ok2 = await genImage(wrap(imgReview.better_prompt), out);
+              if (ok2) ok = ok2;
+            }
+          } catch (e) { console.error("히어로 이미지 비전 검수 실패(1차 이미지 사용):", e.message); }
+        }
         if (ok) heroLocal = `img/${imgName}`;
       } catch (e) { console.error("이미지 생성 실패(텍스트 히어로로 대체):", e.message); }
     }
-    const deviceUrl = fs.existsSync(devPath) ? "../brand/device.png" : (heroLocal || (/^https:\/\/\S+\.(png|jpg|jpeg|webp)(\?\S*)?$/i.test(spec.hero_image_url || "") ? spec.hero_image_url : null));
+    const deviceUrl = fs.existsSync(devPath) ? "../brand/device.png" : (/^https:\/\/\S+\.(png|jpg|jpeg|webp)(\?\S*)?$/i.test(spec.hero_image_url || "") ? spec.hero_image_url : null);
     const file = `pop/${w}-${store}-${String(idx.filter(p => p.store === store && p.week === w).length + 1).padStart(2, "0")}.html`;
-    fs.writeFileSync(path.join(ROOT, "office", file), renderPop2(spec, { deviceUrl }));
+    fs.writeFileSync(path.join(ROOT, "office", file), renderPop2(spec, { deviceUrl, heroFull: heroLocal }));
     const pageUrl = cfg.pages_url ? `${cfg.pages_url.replace(/\/$/, "")}/${file}` : file;
-    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent} · 히어로: ${heroLocal ? "생성 이미지" : "텍스트"}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
+    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent} · 히어로: ${heroLocal ? "생성 이미지(전체 배경)" : "텍스트"}${imgReview ? `\n- 히어로 이미지 검수(영화 보는 사람): ${imgReview.verdict} — ${imgReview.why || ""}${imgReview.verdict === "재생성" ? " → 개선 프롬프트로 재생성함" : ""}` : ""}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
     const p = await N.createContent({ title: `[${store}] POP — ${[].concat(spec.headline).join(" ")}`, status: "검수중", line: "POP", type: "POP", team: "작성", stores: [store], author: "POP 디자이너", week: w, basis: `${plan ? `기획안 ${w}` : "지점 안내 기본형"} · 시 후보→디자이너→영화 패널 리뷰 · mood=${spec.mood} · 엔진 자동 제작`, body });
     idx.push({ notion_id: p.id, notion_url: p.url, store, week: w, title: [].concat(spec.headline).join(" "), file, t: new Date().toISOString(), status: "검수중" });
     fs.writeFileSync(IDX, JSON.stringify(idx, null, 1));

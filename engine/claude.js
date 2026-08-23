@@ -1,10 +1,17 @@
 // Claude API 호출 — 정의서(system) + 작업 지시(user). web_search 도구 선택 사용.
+// images: 로컬 이미지 파일 경로 배열 — 직원이 이미지를 '직접 눈으로 보고' 판단할 때 사용 (비전)
 // env: ANTHROPIC_API_KEY, DRY_RUN=1 이면 가짜 응답
+import fs from "node:fs";
 const DRY = process.env.DRY_RUN === "1";
+const MIME = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
 
-export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [], max_tokens = 6000 }) {
+export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [], max_tokens = 6000, images = [] }) {
   if (DRY) return `[DRY 응답] (${model}) ${user.slice(0, 80)}…`;
-  const body = { model, max_tokens, system, messages: [{ role: "user", content: user }] };
+  const imgs = (images || []).filter(f => { try { return fs.statSync(f).size > 0; } catch { return false; } }).slice(0, 5);
+  const content = imgs.length
+    ? [...imgs.map(f => ({ type: "image", source: { type: "base64", media_type: MIME[f.split(".").pop().toLowerCase()] || "image/png", data: fs.readFileSync(f).toString("base64") } })), { type: "text", text: user }]
+    : user;
+  const body = { model, max_tokens, system, messages: [{ role: "user", content }] };
   if (tools.includes("web_search")) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }];
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",

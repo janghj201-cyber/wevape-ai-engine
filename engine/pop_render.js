@@ -10,6 +10,7 @@ const MOODS = {
     h1: (a) => `color:#fff;font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;letter-spacing:.5mm;`,
     h1b: (a) => `color:${a};font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;text-shadow:0 0 6mm ${a}88;`,
     ink: "#fff", sub: "#e9d5ff", cap: "#c9b6ff", zh: "#fff", ban: (a) => `background:${a};color:#0b0b0f`, badgeBg: (a) => a, badgeInk: "#0b0b0f",
+    scrim: "linear-gradient(180deg,rgba(11,11,15,.80) 0%,rgba(11,11,15,.28) 40%,rgba(11,11,15,.20) 58%,rgba(11,11,15,.85) 100%)",
   },
   "pop-purple": {
     bg: `background:#5b1fd6;`,
@@ -17,6 +18,7 @@ const MOODS = {
     h1: (a) => `color:${a};font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;`,
     h1b: (a) => `color:#fff;font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;`,
     ink: "#fff", sub: "#fff", cap: "#1a0a4a", zh: "#1a0a4a", ban: (a) => `background:#1a0a4a;color:${a}`, badgeBg: () => "#ff2fd0", badgeInk: "#fff",
+    scrim: "linear-gradient(180deg,rgba(38,10,110,.82) 0%,rgba(38,10,110,.32) 42%,rgba(38,10,110,.24) 60%,rgba(26,10,74,.88) 100%)",
   },
   "holo-pastel": {
     bg: `background:linear-gradient(135deg,#f7b7e6 0%,#c9b6ff 45%,#f9c6ec 70%,#bfe4ff 100%);`,
@@ -24,6 +26,7 @@ const MOODS = {
     h1: (a) => `color:transparent;-webkit-text-stroke:.55mm #fff;font-family:'Playfair Display','Noto Serif KR',serif;text-transform:uppercase;letter-spacing:.8mm;text-shadow:0 0 5mm rgba(255,255,255,.55);`,
     h1b: (a) => `color:#fff;font-family:'Playfair Display','Noto Serif KR',serif;font-style:italic;text-transform:uppercase;`,
     ink: "#fff", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#fff", ban: (a) => `background:rgba(255,255,255,.55);color:#4a2a7a`, badgeBg: () => "#fff", badgeInk: "#a03aa0",
+    scrim: "linear-gradient(180deg,rgba(255,240,252,.80) 0%,rgba(255,240,252,.28) 42%,rgba(255,240,252,.22) 60%,rgba(255,240,252,.86) 100%)",
   },
   "sky-pastel": {
     bg: `background:linear-gradient(180deg,#bfe4ff 0%,#eaf6ff 55%,#ffffff 100%);`,
@@ -31,17 +34,21 @@ const MOODS = {
     h1: (a) => `color:#7b2cff;font-family:'Playfair Display','Noto Serif KR',serif;text-transform:uppercase;letter-spacing:.6mm;`,
     h1b: (a) => `color:${a};font-family:'Playfair Display','Noto Serif KR',serif;font-style:italic;text-transform:uppercase;`,
     ink: "#2b1a5a", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#4a2a7a", ban: (a) => `background:#7b2cff;color:#fff`, badgeBg: () => "#7b2cff", badgeInk: "#fff",
+    scrim: "linear-gradient(180deg,rgba(240,248,255,.82) 0%,rgba(240,248,255,.30) 42%,rgba(240,248,255,.22) 60%,rgba(255,255,255,.88) 100%)",
   },
 };
 
 export function renderPop2(spec, opts = {}) {
   const mood = MOODS[spec.mood] || MOODS["glow-dark"]; const a = spec.accent || "#ff2fd0";
   const dev = opts.deviceUrl; // office/brand/device.png 있으면 히어로
+  const full = opts.heroFull; // 생성 이미지 — 포스터 '전체 배경'으로 깔고 무드 스크림으로 글자 대비 확보
   const [h1a, h1b] = Array.isArray(spec.headline) ? spec.headline : String(spec.headline || "").split("\n");
   const L = Math.max((h1a || "").length, (h1b || "").length); const size = spec.headline_size || (L > 9 ? 21 : L > 6 ? 27 : 33);
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${esc(spec.title)}</title>${FONTS}
 <style>@page{size:A4 portrait;margin:0}html,body{margin:0;background:#e5e7eb}
 .pop{width:210mm;height:297mm;margin:0 auto;position:relative;overflow:hidden;${mood.bg}font-family:'Noto Sans KR',sans-serif;color:${mood.ink}}
+.heroBg{position:absolute;inset:0;background-size:cover;background-position:center}
+.scrim{position:absolute;inset:0;background:${mood.scrim || "linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,.2) 45%,rgba(0,0,0,.75))"}}
 .blob{position:absolute;border-radius:50%;filter:blur(14mm)}
 .orb{position:absolute;border-radius:50%;filter:blur(.3mm);box-shadow:0 0 6mm rgba(255,255,255,.4)}
 .arrow,.squig{position:absolute}
@@ -69,12 +76,12 @@ h1 .a{display:block;${mood.h1(a)}}h1 .b{display:block;${mood.h1b(a)}}
 .ban{margin-top:5mm;padding:2.6mm 5mm;font-family:'Bebas Neue',Anton,sans-serif;font-size:5.6mm;letter-spacing:.8mm;${mood.ban(a)};display:flex;justify-content:space-between}
 .law{margin-top:2.5mm;font-size:3.2mm;opacity:.75;color:${mood.cap}}
 @media print{html,body{background:#fff}}</style></head><body>
-<div class="pop">${mood.layers(a)}
+<div class="pop">${full ? `<div class="heroBg" style="background-image:url('${full}')"></div><div class="scrim"></div>` : mood.layers(a)}
 <div class="wrap">
   <div class="brand"><span>WEVAPE</span><span class="badge">${esc(spec.tag || "본사 직영")}</span></div>
   <h1><span class="a">${esc(h1a || "")}</span>${h1b ? `<span class="b">${esc(h1b)}</span>` : ""}</h1>
   <div class="sub">${esc(spec.sub || "")}</div>
-  <div class="hero">${dev ? `<img src="${dev}" alt="">` : `<div class="big">${esc(spec.hero_word || "WEVAPE")}</div>`}</div>
+  <div class="hero">${dev ? `<img src="${dev}" alt="">` : full ? "" : `<div class="big">${esc(spec.hero_word || "WEVAPE")}</div>`}</div>
   <div class="foot">
     <div class="kr">${esc(spec.kr || "")}</div>
     <div class="zh">${esc(spec.zh || "本店为总公司直营门店 · 库存充足")}</div>
