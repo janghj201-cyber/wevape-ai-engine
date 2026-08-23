@@ -249,6 +249,11 @@ const cnt = s=>items.filter(i=>i.status===s).length;
         <div style="margin-top:10px;display:flex;justify-content:center"><div class="person" style="width:64px">${fig(ceo,44)}<div>${esc(D.manager)}</div></div></div>
       </div>
       <div class="side">
+        <div class="card"><h3>🎙️ 대표 지시</h3>
+          <textarea id="ceo-order" rows="3" style="width:100%;border:1px solid #d8c9a8;border-radius:8px;padding:8px;font:inherit;resize:vertical" placeholder="예) 이번 주는 가을 분위기로 바꿔. 검단점 POP 다시 만들어줘. 후기형 글에 손님 대화를 더 넣어."></textarea>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button onclick="sendOrder(this)" style="background:#1e2a3a;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">지시 내리기</button><span class="so-out" style="color:var(--muted);font-size:12px"></span></div>
+          <div style="margin-top:6px;color:var(--muted);font-size:12px">편집장이 접수해 필요한 직원을 즉시 출근시킵니다. 사진·긴 자료는 <a href="${D.materials_url||'#'}" target="_blank"><b>📥 자료함</b></a>에 올려 주세요 — 직원들이 출근할 때마다 읽고, 이미지는 영화 보는 사람이 직접 봅니다.</div>
+        </div>
         <a class="doorbtn" href="#hall"><span class="d"></span><span>복도로 나가기<small>부서 방으로 이동 · ${D.departments.filter(d=>d.active).length}개 부서 근무 중</small></span></a>
         <div class="card"><h3>🎯 회사 점수 — 목표 100</h3>${(()=>{const S=D.score; if(!S) return '<div style="color:var(--muted)">첫 회고(금 17:30) 후 표시</div>'; const A=[["글 품질",S.blog_quality,25],["POP·비주얼",S.pop_quality,20],["실행·발행",S.execution,15],["규제 안전",S.regulation,15],["학습·성장",S.learning,15],["협업·자율",S.collaboration,10]]; return `<div class="gauge"><div class="num">${S.total}<small> /100</small></div><div class="bars">${A.map(([n,v,w])=>`<div class="bar"><span>${n}</span><i><b style="width:${v}%"></b></i><em>${v}</em></div>`).join("")}</div></div><div style="margin-top:6px;color:var(--muted)">${S.at||""} 기준 · 승인 메모에 「점수: NN」을 적으면 그 점수가 반영됩니다${S.url?` · <a href="${S.url}" target="_blank">스코어카드</a>`:""}</div>`;})()}</div>
         <div class="card brief"><h3>📋 오늘 브리핑 (${today})</h3><ul>${byDept}</ul></div>
@@ -347,6 +352,18 @@ document.querySelectorAll('.tl .row').forEach(r=>r.addEventListener('click',()=>
 
 /* ─────────── 대표실 채점·결재 → GitHub Actions → 노션 ─────────── */
 function setToken(){ const t=prompt("GitHub 토큰(fine-grained, 이 리포 Actions: Read and write)을 붙여넣으세요. 이 브라우저에만 저장됩니다.", localStorage.getItem("wv_gh_token")||""); if(t!==null){ localStorage.setItem("wv_gh_token", t.trim()); alert(t.trim()?"저장됐습니다. 이제 결재함에서 바로 점수·승인·반려가 됩니다.":"토큰을 지웠습니다."); } }
+async function sendOrder(btn){
+  const ta=document.getElementById('ceo-order'); const out=btn.parentElement.querySelector('.so-out');
+  const memo=(ta.value||'').trim(); if(!memo){ out.textContent='지시 내용을 적어주세요.'; return; }
+  const tok=localStorage.getItem('wv_gh_token'); if(!tok){ out.textContent='먼저 결재함의 ⚙ 결재 연결에서 토큰을 넣어주세요.'; return; }
+  btn.disabled=true; out.textContent='전달 중…';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${D.repo}/actions/workflows/engine.yml/dispatches`,{method:'POST',headers:{'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({ref:'main',inputs:{job:'ceo:instruct',memo:memo.slice(0,900)}})});
+    if(r.status===204){ out.textContent='전달됐습니다 — 편집장이 1~3분 안에 접수해 실행합니다.'; ta.value=''; }
+    else{ out.textContent='실패('+r.status+') — ⚙ 결재 연결의 토큰 권한을 확인해주세요.'; }
+  }catch(e){ out.textContent='오류: '+e.message; }
+  btn.disabled=false;
+}
 async function sendScore(btn, decision){
   const box=btn.closest('.score'); const id=box.dataset.id; const score=box.querySelector('input[type=range]').value; const memo=box.querySelector('input[type=text]').value; const out=box.nextElementSibling;
   const tok=localStorage.getItem("wv_gh_token"); if(!tok){ out.textContent="먼저 ⚙ 결재 연결에서 토큰을 넣어주세요."; return; }
