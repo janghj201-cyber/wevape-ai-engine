@@ -72,9 +72,9 @@ h1 .a{display:block;${mood.h1(a)}}h1 .b{display:block;${mood.h1b(a)}}
 .hero .big{font-family:Anton,'Black Han Sans',sans-serif;font-size:54mm;line-height:1;color:transparent;-webkit-text-stroke:.6mm ${mood.ink};opacity:.35;letter-spacing:2mm}
 .foot{position:relative}
 .kr{font-size:6.4mm;font-weight:700;color:${mood.ink}}
-.zh{font-family:'Noto Sans SC','Noto Sans KR',sans-serif;font-size:7.4mm;font-weight:900;color:${mood.zh};margin-top:1mm}
+.zh{font-family:'Noto Sans SC','Noto Sans KR',sans-serif;font-size:7.4mm;font-weight:900;color:${full ? mood.ink : mood.zh};margin-top:1mm}
 .ban{margin-top:5mm;padding:2.6mm 5mm;font-family:'Bebas Neue',Anton,sans-serif;font-size:5.6mm;letter-spacing:.8mm;${mood.ban(a)};display:flex;justify-content:space-between}
-.law{margin-top:2.5mm;font-size:3.2mm;opacity:.75;color:${mood.cap}}
+.law{margin-top:2.5mm;font-size:3.2mm;opacity:.8;color:${full ? mood.ink : mood.cap}}
 @media print{html,body{background:#fff}}</style></head><body>
 <div class="pop">${full ? `<div class="heroBg" style="background-image:url('${full}')"></div><div class="scrim"></div>` : mood.layers(a)}
 <div class="wrap">
