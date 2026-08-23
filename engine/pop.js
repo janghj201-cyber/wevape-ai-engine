@@ -54,7 +54,9 @@ export async function pop_designer_make(cfg, maxPops = 2) {
   let stores = [];
   try { const r = await fetch(cfg.store_master_url); const j = await r.json(); stores = (j.stores || []).map(s => ({ name: s.store, addr: s.addr, phone: s.phone })); } catch { stores = cfg.stores.map(s => ({ name: s, addr: "", phone: "" })); }
   const norm = (n) => cfg.stores.find(s => (n || "").includes(s)) || n;
-  const todo = cfg.stores.filter(s => !donePop.has(s)).slice(0, maxPops);
+  // 강제 재제작: workflow_dispatch memo에 지점명을 넣으면 이미 완료된 지점도 새 버전으로 다시 만든다 (대표 지시·디자인 교체용)
+  const force = (process.env.POP_FORCE_STORE || "").trim();
+  const todo = force && cfg.stores.includes(force) ? [force] : cfg.stores.filter(s => !donePop.has(s)).slice(0, maxPops);
   if (!todo.length) return `${w} 모든 지점 POP 완료`;
   const out = []; fs.mkdirSync(POP_DIR, { recursive: true }); const idx = readIdx();
   for (const store of todo) {
