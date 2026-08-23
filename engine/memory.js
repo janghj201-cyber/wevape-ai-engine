@@ -61,8 +61,10 @@ export async function inject(cfg, staffId, ctx = {}) {
   const score = (k) => (line && k.lines.includes(line) ? 3 : 0) + (k.lines.includes("공통") ? 1 : 0) + (stores.some(s => k.stores.includes(s)) ? 3 : 0) + (k.stores.includes("공통") ? 1 : 0)
     + (k.confidence === "높음" ? 2 : k.confidence === "보통" ? 1 : 0) + (topic && (k.title + k.summary).toLowerCase().split(/\s+/).some(w => w.length > 1 && topic.includes(w)) ? 2 : 0) + (k.category === "금지 사례" || k.category === "규제·정책" ? 1 : 0);
   const picked = knowledge.map(k => [score(k), k]).sort((a, b) => b[0] - a[0]).slice(0, ctx.max || 15).map(x => x[1]);
+  let materials = "";
+  try { if (cfg.materials_page) { const t = await N.readPageText(cfg.materials_page); if (t.trim().length > 40) materials = t.slice(0, 1500); } } catch {}
   const fmt = (arr, f) => arr.length ? arr.map(f).join("\n") : "(없음)";
-  return [
+  return (materials ? `# 대표 자료함 (대표가 직접 던진 재료 — 교훈 다음으로 무겁게 반영)\n${materials}\n\n` : "") + [
     `# 기억 (출근 전에 먼저 읽는다)`,
     `## 나의 이번 주 목표·계획 (스스로 세운 것 — 오늘 근무가 이 목표에 기여하는지 확인)\n${fmt(goals, g => `- ${g.title} — ${g.summary}`)}`,
     `## 나의 최근 업무 노트\n${fmt(notes, n => `- [${n.created.slice(0, 10)}] ${n.title} — ${n.summary}`)}`,
@@ -178,6 +180,15 @@ export async function panel_study(cfg) {
         const heroes = fs.existsSync(heroDir) ? fs.readdirSync(heroDir).filter(f => f.endsWith(".png")).sort() : [];
         if (heroes.length) imgs.push(path.join(heroDir, heroes[heroes.length - 1]));
         imgNote = `\n첨부 이미지: 브랜드 참고 포스터 ${pick.join(", ")}${heroes.length ? ` + 우리 엔진이 최근 생성한 히어로 이미지(${heroes[heroes.length - 1]})` : ""}. 첨부를 직접 보고 — 참고 포스터에서 색·타이포·구도·피사체 처리의 구체 관찰 카드를, 그리고 우리 생성 이미지가 참고 대비 무엇이 부족한지(피사체 유무·밀도·계절감·조명) 비교 카드를 최소 2장 만든다. 이런 카드의 source는 "repo:office/brand/ref/파일명" 형식으로 쓴다.`;
+        // 자료함: 대표가 직접 올린 이미지를 최우선으로 본다
+        try {
+          if (cfg.materials_page) {
+            const urls = await N.pageImages(cfg.materials_page, 2);
+            let mi = 0;
+            for (const u of urls) { try { const rr = await fetch(u); if (rr.ok) { const p2 = `/tmp/material-${mi}.png`; fs.writeFileSync(p2, Buffer.from(await rr.arrayBuffer())); imgs.unshift(p2); mi++; } } catch {} }
+            if (mi) imgNote += `\n최우선 첨부: 대표가 자료함에 직접 올린 이미지 ${mi}장 — 대표가 원하는 결을 보여주는 자료다. 가장 무겁게 관찰해 카드로 남긴다(source는 "자료함").`;
+          }
+        } catch (e) { console.error("자료함 이미지 생략:", e.message.slice(0, 80)); }
         // 브라우저 눈: 네이버 이미지 검색 화면을 통째로 찍어 실물 사례를 직접 보게 (playwright 설치된 잡에서만)
         try {
           const { snapUrl } = await import("./eyes.js");

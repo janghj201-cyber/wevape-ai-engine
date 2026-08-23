@@ -191,7 +191,27 @@ export async function events_poll(cfg) {
   return out.join("\n");
 }
 
+// ── 대표 지시: 대표실 명령창 → 편집장이 접수·해석 → 필요한 직원을 즉시 출근시켜 실행
+export async function ceo_instruct(cfg) {
+  const memo = (process.env.INPUT_MEMO || "").trim();
+  if (!memo) return "지시 내용 없음 (memo 비어 있음)";
+  const { w } = await ctx();
+  const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 40)}${memo.length > 40 ? "…" : ""}`, status: "승인", line: "기획", type: "대표 지시", team: "편집장", author: "관리자", week: w, basis: "대표실 명령창", body: `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)}` });
+  const ALLOWED = ["blog_writer:write", "pop_designer:make", "regulation_watcher:brief", "trend_researcher:report", "industry_reader:read", "panel:study", "upload_recorder:instruct", "editor:plan", "company:standup"];
+  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 5 })), model: cfg.staff.editor.model, max_tokens: 900,
+    dry: { understanding: "DRY", tasks: [], store: "", note_to_staff: "" },
+    user: `대표가 방금 명령창으로 지시했다:\n"${memo}"\n\n당신은 편집장이다. 이 지시를 접수하고 무엇을 실행할지 결정하라.\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점 목록: ${cfg.stores.join(", ")}\nJSON: {"understanding":"지시 요해 한 줄","tasks":["즉시 실행할 작업 0~3개 (목록 안에서만)"],"store":"특정 지점 대상 지시면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n판단 기준: POP을 다시/새로 만들라면 pop_designer:make(+store). 글을 쓰거나 고치라면 blog_writer:write. 조사·공부 지시면 해당 조사 작업. 방침·톤 지시처럼 지금 실행할 게 없으면 tasks는 빈 배열 — 지시는 어차피 모든 직원의 다음 출근 때 기억으로 전달된다.` });
+  if (plan.store && cfg.stores.includes(plan.store)) process.env.POP_FORCE_STORE = plan.store;
+  try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수: ${memo.slice(0, 150)} / 해석: ${plan.understanding || ""} / 직원 전달: ${plan.note_to_staff || ""} / 실행: ${(plan.tasks || []).join(", ") || "다음 근무 반영"}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
+  const out = [`지시 접수 → ${rec.url}`, `편집장 해석: ${plan.understanding || "-"}`];
+  for (const t of (plan.tasks || []).filter(t => ALLOWED.includes(t)).slice(0, 3)) {
+    try { const r = await _R[t](cfg); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); } catch (e) { out.push(`▶ ${t} 실패: ${e.message.slice(0, 120)}`); }
+  }
+  return out.join("\n");
+}
+
 const _R = {
+  "ceo:instruct": ceo_instruct,
   "regulation_watcher:brief": regulation_watcher_brief, "trend_researcher:report": trend_researcher_report,
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
   "regulation_reviewer:review": regulation_reviewer_review, "upload_recorder:instruct": upload_recorder_instruct,

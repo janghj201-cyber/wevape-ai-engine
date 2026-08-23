@@ -102,3 +102,14 @@ export async function readPageText(pageId) {
   } while (cursor);
   return out.join("\n");
 }
+
+// 페이지에 붙은 이미지 블록의 파일 URL (자료함 — 대표가 던진 사진을 직원이 눈으로 보게)
+export async function pageImages(pageId, max = 5) {
+  const out = []; let cursor;
+  do {
+    const r = await req("GET", `/blocks/${pageId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`);
+    for (const b of r.results || []) { if (b.type === "image") { const u = b.image?.file?.url || b.image?.external?.url; if (u) out.push(u); } }
+    cursor = r.has_more && out.length < max ? r.next_cursor : null;
+  } while (cursor);
+  return out.slice(0, max);
+}
