@@ -1,21 +1,21 @@
 {
  "week": "2026-W35",
  "blog_quality": 35,
- "pop_quality": 28,
+ "pop_quality": 26,
  "execution": 0,
  "regulation": 60,
  "learning": 80,
  "collaboration": 100,
  "counts": {
-  "items": 212,
-  "week_items": 203,
+  "items": 45,
+  "week_items": 36,
   "approved": 4,
   "published": 0,
-  "knowledge": 194,
-  "lessons": 28,
+  "knowledge": 234,
+  "lessons": 42,
   "repeat": 2,
-  "standups": 2,
-  "waiting": 8
+  "standups": 4,
+  "waiting": 0
  },
  "total": 45,
  "weights": {
@@ -26,6 +26,6 @@
   "learning": 15,
   "collaboration": 10
  },
- "at": "2026-08-21T18:11",
- "url": "https://app.notion.com/p/2026-W35-45-100-3c309730b90681d1aed9d1559c95d98a"
+ "at": "2026-08-23T13:26",
+ "url": "https://app.notion.com/p/2026-W35-45-100-3c509730b90681cf9130e34001d7add0"
 }
