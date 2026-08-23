@@ -100,6 +100,16 @@ export async function weekly_retro(cfg) {
       await N.createContent({ title: `채용 제안 ${w} — ${hr.role}`, status: "승인 대기", line: "보고", type: "채용 제안", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `주간 회고 병목 분석 · 관리자 승인 시 정의서 작성·시계 배정`, body: `# 채용 제안: ${hr.role}\n\n- 왜: ${hr.why}\n- 하는 일: ${hr.does}\n- 읽는 것: ${hr.inputs}\n- 내놓는 것: ${hr.outputs}\n- 예상 비용: ${hr.cost}\n\n승인하시면 정의서를 쓰고 근무 시계에 넣습니다. 반려면 사유를 메모에 남겨 주세요.` });
     }
   } catch (e) { console.error("채용 제안 실패:", e.message); }
+  // 도구 도입 제안 (관리자 지시 2026-08-23: 능력이 부족하면 다른 제작 AI를 스스로 찾아 붙이자고 제안까지 나와야 한다)
+  try {
+    const havetools = `현재 보유 장비: Claude(글·기획·검수), 웹 검색, 노션, HTML/CSS 렌더(POP)${process.env.GEMINI_API_KEY ? ", 이미지 생성(연결됨)" : ""}. 이미지 생성 ${process.env.GEMINI_API_KEY ? "있음" : "없음"} · 영상 생성 없음 · 실사 사진 없음.`;
+    const t = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 4 })) + `\n\n${havetools}`, model: cfg.staff.editor.model, max_tokens: 1200, dry: { tools: [] },
+      user: `각 라인의 점수가 낮은 이유가 「실력(학습·교훈으로 해결)」인지 「장비(도구 없이는 물리적으로 불가)」인지 판정하세요. 현재: POP ${m.pop_quality}점(실사·그래픽 없음), 글 ${m.blog_quality}점(사진 없음), 영상 라인 0(도구 없음).\n장비 문제면 도입 제안을 JSON으로: {"tools":[{"name":"도구·API 이름(실존하는 것)","for":"어느 라인·직원이 쓰나","why":"어떤 한계를 푸는가 — 점수 영역과 현재→예상 점수","monthly_cost":"월 예상 비용(달러, 대략)","first_use":"연결되면 처음 만들 것 1개","risk":"규제·주의점 1줄"}]}\n0~2개, 효과 큰 순. 이미 보유한 장비는 제안하지 않는다.` });
+    for (const tl of (t.tools || []).slice(0, 2)) {
+      if (!tl.name) continue;
+      await N.createContent({ title: `도구 도입 제안 ${w} — ${tl.name}`, status: "승인 대기", line: "보고", type: "도구 제안", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `주간 회고 장비/실력 판정 · 승인 시 엔진에 연결`, body: `# 도구 도입 제안: ${tl.name}\n\n- 사용처: ${tl.for}\n- 왜: ${tl.why}\n- 월 비용: ${tl.monthly_cost}\n- 첫 결과물: ${tl.first_use}\n- 주의: ${tl.risk || "-"}\n\n승인하시면 관리자가 해당 API 키를 GitHub Secrets에 넣고, 엔진이 다음 근무부터 사용합니다. 반려면 사유를 메모로 — 교훈으로 기록됩니다.` });
+    }
+  } catch (e) { console.error("도구 제안 실패:", e.message); }
   const p = await N.createContent({ title: `주간 스코어카드 ${w} — ${m.total}/100`, status: "승인", line: "보고", type: "스코어카드", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `자동 지표 + 직원 ${ops.length}명 회고 + 편집장 취합 · 총점 ${m.total}`, body: `${synth}\n\n---\n## 원자료\n\`\`\`json\n${JSON.stringify(m, null, 1)}\n\`\`\`\n\n${opText}` });
   fs.mkdirSync(path.join(ROOT, "office"), { recursive: true });
   fs.writeFileSync(path.join(ROOT, "office/score.json"), JSON.stringify({ ...m, at: kstNow().slice(0, 16), url: p.url }, null, 1));

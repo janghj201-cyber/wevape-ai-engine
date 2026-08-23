@@ -7,6 +7,7 @@ import * as N from "./notion.js";
 import { systemPrompt, isoWeek } from "./org.js";
 import * as M from "./memory.js";
 import { renderPop2, MOOD_KEYS } from "./pop_render.js";
+import { genImage, hasImageGen } from "./imagegen.js";
 const readOpt = (cfg, f) => { try { return fs.readFileSync(path.join(cfg.dir, f), "utf8"); } catch { return ""; } };
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const POP_DIR = path.join(ROOT, "office/pop");
@@ -66,7 +67,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const usedMoods = items.filter(i => i.line === "POP" && i.week === w).map(i => (i.basis.match(/mood=([a-z-]+)/) || [])[1]).filter(Boolean);
     const dsys = systemPrompt(cfg, "pop_designer", await M.inject(cfg, "pop_designer", { line: "POP", stores: [store] }) + `\n\n# 브랜드 비주얼 가이드 (반드시)\n${brand}`);
     const specPrompt = `${store}점 A4 세로 POP 1장 스펙(v2)을 JSON으로:
-{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
+{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","hero_prompt":"이미지 생성용 히어로 프롬프트(영문 1~2문장 — 무드·소재·조명·구도만. 사람·연기·제품 패키지·글자 금지)","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
 헤드라인 후보(시 읽는 사람): ${JSON.stringify(cands.candidates || [])} — 후보 중 리듬 있는 것을 2줄로 쪼개거나 다듬어 쓴다. 위치명·지점명만 있는 헤드라인 금지.
 이번 주 이미 쓴 무드(중복 금지): ${usedMoods.join(", ") || "없음"}
 지점: ${sm.name} / ${sm.addr} / ${sm.phone}
@@ -86,11 +87,20 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     if (!MOOD_KEYS.includes(spec.mood)) spec.mood = MOOD_KEYS[(idx.length) % MOOD_KEYS.length];
     spec.store_name = `위베이프 ${store}점`; spec.store_addr = sm.addr; spec.store_phone = sm.phone;
     const devPath = path.join(ROOT, "office/brand/device.png");
-    const deviceUrl = fs.existsSync(devPath) ? "../brand/device.png" : (/^https:\/\/\S+\.(png|jpg|jpeg|webp)(\?\S*)?$/i.test(spec.hero_image_url || "") ? spec.hero_image_url : null);
+    let heroLocal = null;
+    if (hasImageGen() && spec.hero_prompt) {
+      try {
+        fs.mkdirSync(path.join(ROOT, "office/pop/img"), { recursive: true });
+        const imgName = `${w}-${store}-${String(idx.length + 1).padStart(2, "0")}.png`;
+        const ok = await genImage(`${spec.hero_prompt}. Vertical poster hero image for an A4 print, ${spec.mood} mood, accent color ${spec.accent}. No text, no letters, no people, no smoke or vapor, no product packaging or branded labels. High-end commercial studio photography, clean composition, lots of negative space at top.`, path.join(ROOT, "office/pop/img", imgName));
+        if (ok) heroLocal = `img/${imgName}`;
+      } catch (e) { console.error("이미지 생성 실패(텍스트 히어로로 대체):", e.message); }
+    }
+    const deviceUrl = fs.existsSync(devPath) ? "../brand/device.png" : (heroLocal || (/^https:\/\/\S+\.(png|jpg|jpeg|webp)(\?\S*)?$/i.test(spec.hero_image_url || "") ? spec.hero_image_url : null));
     const file = `pop/${w}-${store}-${String(idx.filter(p => p.store === store && p.week === w).length + 1).padStart(2, "0")}.html`;
     fs.writeFileSync(path.join(ROOT, "office", file), renderPop2(spec, { deviceUrl }));
     const pageUrl = cfg.pages_url ? `${cfg.pages_url.replace(/\/$/, "")}/${file}` : file;
-    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
+    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent} · 히어로: ${heroLocal ? "생성 이미지" : "텍스트"}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
     const p = await N.createContent({ title: `[${store}] POP — ${[].concat(spec.headline).join(" ")}`, status: "검수중", line: "POP", type: "POP", team: "작성", stores: [store], author: "POP 디자이너", week: w, basis: `${plan ? `기획안 ${w}` : "지점 안내 기본형"} · 시 후보→디자이너→영화 패널 리뷰 · mood=${spec.mood} · 엔진 자동 제작`, body });
     idx.push({ notion_id: p.id, notion_url: p.url, store, week: w, title: [].concat(spec.headline).join(" "), file, t: new Date().toISOString(), status: "검수중" });
     fs.writeFileSync(IDX, JSON.stringify(idx, null, 1));
