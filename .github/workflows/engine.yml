@@ -30,7 +30,7 @@ on:
         required: false
         default: ""
       memo:
-        description: "(company:score) 관리자 메모 / (pop_make) 강제 재제작할 지점명"
+        description: "(company:score) 관리자 메모"
         required: false
         default: ""
 concurrency: { group: engine, cancel-in-progress: false }
@@ -83,4 +83,6 @@ jobs:
           git config user.name "wevape-ai-engine"; git config user.email "engine@wevape.local"
           git add office/ || true
           git commit -m "office: ${{ steps.pick.outputs.job }} $(date -u +%FT%TZ)" || echo "변경 없음"
-          git push || true
+          # 다른 커밋이 먼저 들어와도 결과물이 유실되지 않게: rebase 후 push, 충돌 시 우리 office/ 우선
+          git pull --rebase origin main || { git checkout --theirs -- office/ && git add office/ && GIT_EDITOR=true git rebase --continue; } || true
+          git push || { git pull --rebase origin main && git push; } || true
