@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-23T19:44",
+ "generated_at": "2026-08-23T19:55",
  "week": "2026-W35",
  "manager": "장현진 팀장",
  "staff": [
@@ -170,6 +170,7 @@
  ],
  "pages_url": "https://janghj201-cyber.github.io/wevape-ai-engine/office",
  "repo": "janghj201-cyber/wevape-ai-engine",
+ "materials_url": "https://app.notion.com/p/3c509730b906815a88b7d4aa256eaae4",
  "items": [
   {
    "id": "3be09730-b906-81f6-957d-fc2eb8035afe",
@@ -1204,6 +1205,24 @@
    "memo": "",
    "url": "https://app.notion.com/p/2026-W35-1-3c509730b906816fb17fe6e40143fa25",
    "file": ""
+  },
+  {
+   "id": "3c509730-b906-81e5-98b6-e308c06b3330",
+   "t": "2026-08-23T19:55+09:00",
+   "title": "대표 지시 — 이제 8월 말이니 다음 주부터 모든 글과 POP을 초가을 저녁 분위기로 …",
+   "status": "승인",
+   "line": "기획",
+   "type": "대표 지시",
+   "author": "관리자",
+   "stores": [
+    "공통"
+   ],
+   "week": "2026-W35",
+   "basis": "대표실 명령창",
+   "review": "",
+   "memo": "",
+   "url": "https://app.notion.com/p/8-POP-3c509730b90681e598b6e308c06b3330",
+   "file": ""
   }
  ],
  "pops": [
@@ -1581,7 +1600,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-08-23T11:44:44.181Z",
+  "at": "2026-08-23T11:55:12.607Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
