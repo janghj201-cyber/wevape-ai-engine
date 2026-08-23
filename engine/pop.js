@@ -122,8 +122,29 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const deviceUrl = fs.existsSync(devPath) ? "../brand/device.png" : (/^https:\/\/\S+\.(png|jpg|jpeg|webp)(\?\S*)?$/i.test(spec.hero_image_url || "") ? spec.hero_image_url : null);
     const file = `pop/${w}-${store}-${String(idx.filter(p => p.store === store && p.week === w).length + 1).padStart(2, "0")}.html`;
     fs.writeFileSync(path.join(ROOT, "office", file), renderPop2(spec, { deviceUrl, heroFull: heroLocal }));
+    // 4) 브라우저 눈: 완성본을 렌더링해 디자이너가 '직접 눈으로' 출고 전 검수 → 1회 수정 후 재렌더
+    let shotLocal = null, selfCheck = null;
+    try {
+      const { snapFile } = await import("./eyes.js");
+      fs.mkdirSync(path.join(ROOT, "office/pop/shot"), { recursive: true });
+      const shotName = file.replace(/^pop\//, "").replace(/\.html$/, ".png");
+      const shotPath = path.join(ROOT, "office/pop/shot", shotName);
+      if (await snapFile(path.join(ROOT, "office", file), shotPath)) {
+        shotLocal = `pop/shot/${shotName}`;
+        selfCheck = await askJSON({ system: dsys, model: cfg.staff.pop_designer.model, max_tokens: 900, images: [shotPath],
+          dry: { verdict: "통과", why: "DRY", fixes: {} },
+          user: `방금 출고 직전인 ${store}점 POP '완성본 화면'입니다(당신이 만든 것). 실물 포스터를 3m 밖에서 본다고 생각하고: ① 글자가 배경에 묻히지 않는가 ② 헤드라인이 한눈에 읽히는가 ③ 레이아웃 깨짐·어색한 여백은 없는가 ④ 전체 인상이 브랜드 가이드 수준인가. JSON {"verdict":"통과|수정","why":"한 줄","fixes":{"바꿀 필드":"값"}} — fixes는 스펙 필드만(headline 배열·accent·mood·sub·kr·zh·tag). 배경 이미지는 이 단계에서 못 바꾼다(글·색만).` });
+        if (selfCheck?.verdict === "수정" && selfCheck.fixes && typeof selfCheck.fixes === "object") {
+          const keepHero2 = spec.hero_prompt;
+          spec = { ...spec, ...selfCheck.fixes };
+          if (!spec.hero_prompt) spec.hero_prompt = keepHero2;
+          fs.writeFileSync(path.join(ROOT, "office", file), renderPop2(spec, { deviceUrl, heroFull: heroLocal }));
+          await snapFile(path.join(ROOT, "office", file), shotPath);
+        }
+      }
+    } catch (e) { console.error("완성본 셀프 검수 생략:", e.message.slice(0, 120)); }
     const pageUrl = cfg.pages_url ? `${cfg.pages_url.replace(/\/$/, "")}/${file}` : file;
-    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent} · 히어로: ${heroLocal ? "생성 이미지(전체 배경)" : "텍스트"}${imgReview ? `\n- 히어로 이미지 검수(영화 보는 사람): ${imgReview.verdict} — ${imgReview.why || ""}${imgReview.verdict === "재생성" ? " → 개선 프롬프트로 재생성함" : ""}` : ""}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
+    const body = `# ${spec.title}\n\n- 용도: ${spec.purpose || ""}\n- 미리보기/인쇄: ${pageUrl}\n- 무드: ${spec.mood} · 포인트 ${spec.accent} · 히어로: ${heroLocal ? "생성 이미지(전체 배경)" : "텍스트"}${imgReview ? `\n- 히어로 이미지 검수(영화 보는 사람): ${imgReview.verdict} — ${imgReview.why || ""}${imgReview.verdict === "재생성" ? " → 개선 프롬프트로 재생성함" : ""}` : ""}${shotLocal ? `\n- 완성본 미리보기(이미지): ${cfg.pages_url ? `${cfg.pages_url.replace(/\/$/, "")}/${shotLocal}` : shotLocal}` : ""}${selfCheck ? `\n- 완성본 셀프 검수(디자이너가 눈으로): ${selfCheck.verdict} — ${selfCheck.why || ""}` : ""}\n- 헤드라인 후보(시 읽는 사람): ${(cands.candidates || []).join(" / ")}\n\n## 카피\n- 배지: ${spec.tag}\n- 헤드라인: ${[].concat(spec.headline).join(" / ")}\n- 부제: ${spec.sub}\n- 히어로 워드: ${spec.hero_word || ""}\n- 한글 안내: ${spec.kr || ""}\n- 중국어: ${spec.zh || ""}\n- 하단: ${spec.store_name} · ${sm.addr} · ${sm.phone}\n\n## 영화 보는 사람 디자인 리뷰\n${critique ? `${critique.verdict} — ${(critique.notes || []).join(" / ")}` : "(패널 미참여)"}\n\n## 디자이너 자체 점검\n${spec.check || ""}\n\n\`\`\`json\n${JSON.stringify(spec, null, 1)}\n\`\`\``;
     const p = await N.createContent({ title: `[${store}] POP — ${[].concat(spec.headline).join(" ")}`, status: "검수중", line: "POP", type: "POP", team: "작성", stores: [store], author: "POP 디자이너", week: w, basis: `${plan ? `기획안 ${w}` : "지점 안내 기본형"} · 시 후보→디자이너→영화 패널 리뷰 · mood=${spec.mood} · 엔진 자동 제작`, body });
     idx.push({ notion_id: p.id, notion_url: p.url, store, week: w, title: [].concat(spec.headline).join(" "), file, t: new Date().toISOString(), status: "검수중" });
     fs.writeFileSync(IDX, JSON.stringify(idx, null, 1));

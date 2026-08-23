@@ -178,6 +178,17 @@ export async function panel_study(cfg) {
         const heroes = fs.existsSync(heroDir) ? fs.readdirSync(heroDir).filter(f => f.endsWith(".png")).sort() : [];
         if (heroes.length) imgs.push(path.join(heroDir, heroes[heroes.length - 1]));
         imgNote = `\n첨부 이미지: 브랜드 참고 포스터 ${pick.join(", ")}${heroes.length ? ` + 우리 엔진이 최근 생성한 히어로 이미지(${heroes[heroes.length - 1]})` : ""}. 첨부를 직접 보고 — 참고 포스터에서 색·타이포·구도·피사체 처리의 구체 관찰 카드를, 그리고 우리 생성 이미지가 참고 대비 무엇이 부족한지(피사체 유무·밀도·계절감·조명) 비교 카드를 최소 2장 만든다. 이런 카드의 source는 "repo:office/brand/ref/파일명" 형식으로 쓴다.`;
+        // 브라우저 눈: 네이버 이미지 검색 화면을 통째로 찍어 실물 사례를 직접 보게 (playwright 설치된 잡에서만)
+        try {
+          const { snapUrl } = await import("./eyes.js");
+          const QUERIES = ["전자담배 매장 포스터", "베이프샵 매장 디자인", "매장 POP 디자인 사례", "네온 포스터 디자인"];
+          const q = QUERIES[day % QUERIES.length];
+          const naverShot = "/tmp/naver-eyes.png";
+          if (await snapUrl(`https://search.naver.com/search.naver?where=image&query=${encodeURIComponent(q)}`, naverShot)) {
+            imgs.push(naverShot);
+            imgNote += `\n추가 첨부: 네이버 이미지 검색 「${q}」 결과 화면 — 지금 실제로 유통되는 사례들을 눈으로 관찰하고, 규제 안에서 우리 POP에 가져올 형식·색·구도만 카드로 만든다(제품·맛·가격 표현은 금지 사례로만). 이런 카드의 source는 "naver-image:${q}"로 쓴다.`;
+          }
+        } catch (e) { console.error("네이버 눈 생략:", e.message.slice(0, 100)); }
       } catch (e) { console.error("panel_film 이미지 첨부 실패:", e.message); }
     }
     try {
