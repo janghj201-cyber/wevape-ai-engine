@@ -75,6 +75,11 @@ jobs:
             "0 2,14 * * *") echo "job=panel_study" >> $GITHUB_OUTPUT;;
             *)            echo "job=poll_events" >> $GITHUB_OUTPUT;;
           esac
+      - name: 브라우저 눈 준비 (POP 제작·패널 자습에서만)
+        if: ${{ contains('pop_make panel_study', steps.pick.outputs.job) }}
+        run: |
+          npm install playwright --no-save --no-fund --no-audit > /dev/null 2>&1
+          npx playwright install --with-deps chromium 2>&1 | tail -2
       - name: 출근
         run: node engine/run.js marketing ${{ steps.pick.outputs.job }}
       - name: 사무실 화면 배포 (GitHub Pages)
