@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-25T20:59",
+ "generated_at": "2026-08-25T21:03",
  "week": "2026-W36",
  "manager": "장현진 팀장",
  "staff": [
@@ -109,10 +109,24 @@
    "status": "근무"
   },
   {
+   "id": "quality_editor",
+   "name": "quality_editor",
+   "team": "검수",
+   "color": "#dd6b20",
+   "status": "근무"
+  },
+  {
    "id": "upload_recorder",
    "name": "upload_recorder",
    "team": "업로드",
    "color": "#6b46c1",
+   "status": "근무"
+  },
+  {
+   "id": "risk_watch",
+   "name": "risk_watch",
+   "team": "관제",
+   "color": "#888",
    "status": "근무"
   }
  ],
@@ -1639,6 +1653,24 @@
    "memo": "",
    "url": "https://app.notion.com/p/2026-W36-3c709730b9068141b007e878218e9b86",
    "file": ""
+  },
+  {
+   "id": "3c709730-b906-8104-a0ae-dc8175061cda",
+   "t": "2026-08-25T21:03+09:00",
+   "title": "리스크 경보 2026-08-25 — 주의 1건",
+   "status": "승인 대기",
+   "line": "보고",
+   "type": "보고서",
+   "author": "관리자",
+   "stores": [
+    "공통"
+   ],
+   "week": "2026-W36",
+   "basis": "조직 동작 점검 · 신호 1건 · 대표 직보",
+   "review": "",
+   "memo": "",
+   "url": "https://app.notion.com/p/2026-08-25-1-3c709730b9068104a0aedc8175061cda",
+   "file": ""
   }
  ],
  "pops": [
@@ -1950,6 +1982,7 @@
   "at": "2026-08-23T13:26",
   "url": "https://app.notion.com/p/2026-W35-45-100-3c509730b90681cf9130e34001d7add0"
  },
+ "talk": {},
  "meeting": {
   "title": "기획 회의록 2026-W36 (월 09:00 자동 회의)",
   "when": "월 09:00",
@@ -2006,7 +2039,7 @@
    "who": [
     "editor"
    ],
-   "what": "standup"
+   "what": "standup · scan"
   },
   {
    "when": "매일 10:00",
@@ -2014,7 +2047,7 @@
     "writer",
     "reviewer"
    ],
-   "what": "write · review"
+   "what": "write · review · review"
   },
   {
    "when": "화·목 12:00",
@@ -2043,7 +2076,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-08-25T12:59:32.743Z",
+  "at": "2026-08-25T13:03:47.732Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
