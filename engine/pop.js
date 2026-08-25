@@ -85,9 +85,28 @@ export async function pop_designer_make(cfg, maxPops = 2) {
       try {
         critique = await askJSON({ system: systemPrompt(cfg, "panel_film", await M.inject(cfg, "panel_film", { line: "POP", max: 10 }) + `\n\n# 브랜드 비주얼 가이드\n${brand}`), model: cfg.staff.panel_film.model, max_tokens: 800, dry: { verdict: "수정", notes: ["DRY"], fixes: {} },
           user: `POP 디자이너의 스펙입니다. 화면 구성·색·타이포·시선 흐름 관점에서 리뷰하세요. 규제는 보지 말고 "3m 밖에서 한 번에 읽히고 브랜드 결에 맞는가"만.\n${JSON.stringify(spec, null, 1)}\n\nJSON: {"verdict":"통과|수정","notes":["구체적 지적 2~4개(무엇이 약하고 왜)"],"fixes":{"바꿀 필드명":"바꿀 값"}}\nfixes는 스펙 필드명 그대로(headline은 배열). 글자 수 제한 유지.` });
+        // 패널 지적을 무조건 반영하지 않는다 — 디자이너에게 반박권이 있고, 갈리면 편집장이 판정한다
         if (critique?.verdict === "수정" && critique.fixes && typeof critique.fixes === "object") {
           const keepHero = spec.hero_prompt;
-          spec = { ...spec, ...critique.fixes };
+          let accepted = critique.fixes;
+          try {
+            const reb = await askJSON({ system: dsys, model: cfg.staff.pop_designer.model, max_tokens: 700,
+              dry: { accept: [], object: [] },
+              user: `영화 보는 사람이 당신의 스펙을 이렇게 지적했습니다.\n지적: ${(critique.notes || []).join(" / ")}\n요구한 수정: ${JSON.stringify(critique.fixes)}\n\n당신의 스펙:\n${JSON.stringify(spec, null, 1)}\n\n무조건 따를 필요 없습니다. 브랜드 가이드와 이번 지점 맥락에 비추어 판단하세요.\nJSON: {"accept":["받아들일 필드명들"],"object":[{"field":"거부할 필드명","why":"왜 지금 값이 맞는지 근거 1~2줄"}]}\n근거 없이 고집부리지 말고, 근거 없이 굽히지도 마세요.` });
+            const objected = (reb.object || []).filter(o => o.field && o.why);
+            if (objected.length) {
+              // 충돌 — 편집장 판정
+              const ruling = await askJSON({ system: systemPrompt(cfg, "editor"), model: cfg.staff.editor.model, max_tokens: 600,
+                dry: { winner: {}, why: "DRY" },
+                user: `POP 제작 중 충돌입니다. 의장으로서 판정하세요.\n\n지점: ${store}\n영화 보는 사람(비주얼 전문가)의 지적: ${(critique.notes || []).join(" / ")}\n요구 수정: ${JSON.stringify(critique.fixes)}\n\nPOP 디자이너의 반박: ${objected.map(o => `[${o.field}] ${o.why}`).join(" / ")}\n\n판정 기준: 규제 > 브랜드 가이드 > 근거 있는 의견 > 취향. 어느 기준으로 갈랐는지 밝히세요.\nJSON: {"winner":{"필드명":"panel|designer"},"why":"판정 이유 1~2줄"}\n필드마다 누구 손을 들어줄지 정하세요. 양쪽 다 맞다는 답은 금지.` });
+              const W = ruling.winner || {};
+              accepted = Object.fromEntries(Object.entries(critique.fixes).filter(([k]) => W[k] !== "designer"));
+              critique.notes = [...(critique.notes || []), `⚖ 편집장 판정: ${ruling.why || ""} (디자이너 인정 ${Object.values(W).filter(v => v === "designer").length}건)`];
+            } else if (reb.accept?.length) {
+              accepted = Object.fromEntries(Object.entries(critique.fixes).filter(([k]) => reb.accept.includes(k)));
+            }
+          } catch (e) { console.error("반박·판정 생략(패널 의견 반영):", e.message.slice(0, 80)); }
+          spec = { ...spec, ...accepted };
           if (!spec.hero_prompt && keepHero) spec.hero_prompt = keepHero; // 브랜드 가이드 v0.2: hero_prompt 비우는 수정 금지 — 교체만 허용
         }
       } catch (e) { console.error("panel_film 리뷰 실패:", e.message); }

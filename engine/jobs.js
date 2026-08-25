@@ -134,12 +134,46 @@ export async function editor_meeting(cfg) {
     ["blog_writer", `9지점(${cfg.stores.join("·")}) 각 주제·각도·유형(리뷰형/후기형) 1안을 표로. 지난주와 다른 각도. 지시문에 넣을 규칙 1개.`],
     ["regulation_reviewer", "지난주 반려·수정 사유 중 이번 주 지시문에 넣을 규칙 3개, 자동 반려 단어, 작가 주의 1개. 300자."],
   ];
-  const opinions = await Promise.all(roles.map(async ([id, task]) => [id, await ask({ system: systemPrompt(cfg, id, await M.inject(cfg, id)), model: cfg.staff[id].model, user: `기획 회의 참석 의견을 내세요.\n${context}\n\n요청: ${task}` })]));
-  const opText = opinions.map(([id, t]) => `## ${id} 의견\n${t}`).join("\n\n");
-  const minutes = await ask({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor")), model: cfg.staff.editor.model,
-    user: `월요일 기획 회의를 진행했습니다. 아래 의견을 취합 규칙(규제 > 브랜드 > 의견 > 취향)으로 정리해 「기획 회의록 ${w}」를 마크다운으로 쓰세요: 참석, 각자 의견 요약, 채택/기각과 이유, 결정 사항. 관리자 지난 반려 사유는 최우선 반영.\n${context}\n\n${opText}` });
-  const p = await N.createContent({ title: `기획 회의록 ${w} (월 09:00 자동 회의)`, status: "승인", line: "보고", type: "보고서", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `참석: ${roles.map(r => r[0]).join(", ")} 병렬 의견 → 편집장 취합`, body: minutes });
-  return `회의록 ${w} 생성 ${p.url}`;
+  // 1라운드 — 각자 의견
+  const opinions = await Promise.all(roles.map(async ([id, task]) => [id, await ask({ system: systemPrompt(cfg, id, await M.inject(cfg, id)), model: cfg.staff[id].model, user: `기획 회의 1라운드입니다. 의견을 내세요.\n${context}\n\n요청: ${task}` })]));
+  const NM = (id) => cfg.staff[id]?.display || ({ regulation_watcher: "규제 감시자", trend_researcher: "쇼츠 트렌드 리서처", blog_writer: "블로그 작가", regulation_reviewer: "규제 검수관", quality_editor: "품질 편집자" })[id] || id;
+  const round1 = opinions.map(([id, t]) => `### ${NM(id)}\n${t}`).join("\n\n");
+
+  // 2라운드 — 남의 의견을 읽고 반박한다. 여기서 충돌이 드러난다.
+  const rebuttals = await Promise.all(opinions.map(async ([id]) => {
+    const others = opinions.filter(([oid]) => oid !== id).map(([oid, t]) => `### ${NM(oid)}\n${t.slice(0, 1200)}`).join("\n\n");
+    try {
+      const j = await askJSON({ system: systemPrompt(cfg, id, await M.inject(cfg, id, { max: 4 })), model: cfg.staff[id].model, max_tokens: 800,
+        dry: { agree: [], object: [], add: "" },
+        user: `기획 회의 2라운드입니다. 다른 참석자들의 1라운드 의견입니다.\n\n${others}\n\nJSON: {"agree":[{"to":"동의하는 사람 이름","why":"왜 동의하는지 1줄"}],"object":[{"to":"반대하는 사람 이름","what":"어느 대목에 반대하는지 인용","why":"근거 1~2줄","instead":"대신 이렇게 하자"}],"add":"아무도 말 안 한 것 1줄(없으면 빈칸)"}\n\n당신의 관점에서 정말 문제라고 보는 것만 반대하세요. 예의상 동의는 쓰지 마세요. 반대가 없으면 object는 빈 배열로.` });
+      return [id, j];
+    } catch (e) { return [id, { agree: [], object: [], add: "" }]; }
+  }));
+  const conflicts = rebuttals.flatMap(([id, j]) => (j.object || []).map(o => ({ from: NM(id), ...o })));
+  const round2 = rebuttals.map(([id, j]) => {
+    const a = (j.agree || []).map(x => `- 동의 → ${x.to}: ${x.why}`).join("\n");
+    const o = (j.object || []).map(x => `- **반대 → ${x.to}**: "${x.what}" — ${x.why} / 대안: ${x.instead}`).join("\n");
+    return `### ${NM(id)}\n${[a, o, j.add ? `- 추가: ${j.add}` : ""].filter(Boolean).join("\n") || "- (이견 없음)"}`;
+  }).join("\n\n");
+
+  const opText = `# 1라운드 — 각자 의견\n\n${round1}\n\n# 2라운드 — 반박과 동의\n\n${round2}`;
+  const minutes = await ask({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor")), model: cfg.staff.editor.model, max_tokens: 6000,
+    user: `월요일 기획 회의를 2라운드로 진행했습니다. 당신은 의장입니다.\n${context}\n\n${opText}\n\n「기획 회의록 ${w}」를 마크다운으로 쓰세요:\n## 참석\n## 1라운드 요지 (각 1~2줄)\n## 충돌한 지점 — ${conflicts.length}건\n각 충돌마다: 누가 누구에게 무엇을 반대했나 / **당신의 판정과 이유**. 판정 기준은 「규제 > 브랜드 > 근거 있는 의견 > 취향」이며, 어느 기준으로 갈랐는지 반드시 명시하세요. 양쪽 다 맞다는 식으로 얼버무리지 마세요 — 한쪽을 고르고 이유를 대세요.\n## 결정 사항 (이번 주 실행할 것)\n## 보류 — 대표 판단이 필요한 것 (없으면 '없음')\n\n관리자의 지난 반려 사유는 최우선 반영합니다.` });
+
+  // 사무실 화면의 회의록 탭에서 대화로 보이도록 저장
+  try {
+    const talkPath = path.join(path.resolve(new URL("..", import.meta.url).pathname), "office/talk.json");
+    let talk = {}; try { talk = JSON.parse(fs.readFileSync(talkPath, "utf8")); } catch {}
+    talk.meeting = { week: w, at: kstNow().slice(0, 16), title: `기획 회의록 ${w}`,
+      round1: opinions.map(([id, t]) => ({ who: NM(id), text: t.slice(0, 900) })),
+      round2: rebuttals.map(([id, j]) => ({ who: NM(id), agree: j.agree || [], object: j.object || [], add: j.add || "" })),
+      conflicts, ruling: minutes.slice(0, 4000) };
+    fs.mkdirSync(path.dirname(talkPath), { recursive: true });
+    fs.writeFileSync(talkPath, JSON.stringify(talk, null, 1));
+  } catch (e) { console.error("회의록 화면 저장 실패:", e.message.slice(0, 80)); }
+
+  const p = await N.createContent({ title: `기획 회의록 ${w} (월 09:00 자동 회의)`, status: "승인", line: "보고", type: "보고서", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `2라운드 토론 · 참석 ${roles.length}명 · 충돌 ${conflicts.length}건 → 편집장 판정`, body: minutes });
+  return `회의록 ${w} 생성 (충돌 ${conflicts.length}건 판정) ${p.url}`;
 }
 
 // ── 편집장: 주간 기획안 (회의록 기반)
@@ -263,6 +297,7 @@ export async function events_poll(cfg) {
   const out = [];
   out.push(await blog_writer_write(cfg, 3));
   out.push(await regulation_reviewer_review(cfg));
+  out.push(await quality_editor_review(cfg, 3));
   out.push(await upload_recorder_instruct(cfg));
   out.push(await M.detectLessons(cfg));
   return out.join("\n");
@@ -287,11 +322,93 @@ export async function ceo_instruct(cfg) {
   return out.join("\n");
 }
 
+// ── 품질 편집자: 규제를 통과한 건을 "손님이 끝까지 읽는가"로 다시 본다 (70점 미만은 작성자에게 반환)
+const QMARK = "[품질반환";
+export async function quality_editor_review(cfg, maxItems = 6) {
+  if (!cfg.staff.quality_editor) return "품질 편집자 미배치";
+  const { items, w } = await ctx();
+  const tone = readOpt(cfg, "tone_guide.md"), brand = readOpt(cfg, "brand_guide.md");
+  // 규제 통과(= 승인 대기)이고 아직 품질 판정을 안 받은 것. 반환 2회를 넘긴 건은 통과시킨다(무한 반복 금지).
+  const cnt = (m) => (String(m || "").match(/\[품질반환/g) || []).length;
+  const todo = items.filter(i => i.status === "승인 대기" && (i.line === "블로그" || i.line === "POP")
+    && !/품질 \d+점/.test(i.review || "")).slice(0, maxItems);
+  if (!todo.length) return "품질 검수 대상 없음";
+  const out = [];
+  for (const it of todo) {
+    try {
+      const body = (await N.readPageText(it.id)).slice(0, 6000);
+      const guide = it.line === "POP" ? brand : tone;
+      const j = await askJSON({ system: systemPrompt(cfg, "quality_editor", await M.inject(cfg, "quality_editor", { line: it.line, stores: it.stores })) + `\n\n# 기준 문서\n${guide.slice(0, 3000)}`,
+        model: cfg.staff.quality_editor.model, max_tokens: 1200,
+        dry: { total: 80, scores: {}, weakest: "", fix_example: "", why: "DRY" },
+        user: `아래 ${it.line} 결과물을 채점하세요. 규제는 보지 마세요(다른 검수관이 이미 봤습니다). 오직 "손님이 끝까지 읽는가"만.
+
+제목: ${it.title}
+지점: ${(it.stores || []).join(",")} · 유형: ${it.type}
+본문:
+${body}
+
+JSON: {"total":0~100,"scores":{"첫문장":0~25,"사람":0~20,"구체성":0~20,"AI냄새":0~20,"마무리":0~15},"why":"항목별 근거 3~4줄","weakest":"가장 약한 대목을 원문에서 그대로 인용","fix_example":"그 대목을 당신이 직접 고쳐 쓴 문장(작성자가 그대로 참고할 수 있게)"}
+
+70점 미만이면 반환됩니다. 후하게 주지 마세요 — 대표가 '딱딱하다'고 반복 지적한 조직입니다.` });
+      const score = Number(j.total) || 0;
+      const verdict = `품질 ${score}점 — ${j.why || ""}`.slice(0, 1800);
+      if (score < 70 && cnt(it.memo) < 2) {
+        await N.updateContent(it.id, { status: "초안", review: `${it.review ? it.review + " / " : ""}${verdict}`,
+          memo: `${it.memo ? it.memo + " / " : ""}${QMARK} ${score}점] 약한 곳: "${String(j.weakest || "").slice(0, 80)}" → 이렇게: "${String(j.fix_example || "").slice(0, 160)}"` });
+        out.push(`반환(${score}점): ${it.title}`);
+      } else {
+        await N.updateContent(it.id, { review: `${it.review ? it.review + " / " : ""}${verdict}${score < 70 ? " (2회 반환 후 상신 — 대표 판단 요청)" : ""}` });
+        out.push(`통과(${score}점): ${it.title}`);
+      }
+    } catch (e) { out.push(`오류: ${it.title} — ${String(e.message).slice(0, 60)}`); }
+  }
+  return out.join("\n");
+}
+
+// ── 리스크 관리자: 조직이 이상하게 돌고 있는지만 본다. 정상이면 아무것도 만들지 않는다.
+export async function risk_scan(cfg) {
+  if (!cfg.staff.risk_watch) return "리스크 관리자 미배치";
+  const { items, w } = await ctx();
+  const now = Date.now(), H = 3600e3;
+  const at = (i) => new Date(i.t || i.created || 0).getTime();
+  const last24 = items.filter(i => now - at(i) < 24 * H);
+  const week = items.filter(i => now - at(i) < 7 * 24 * H);
+  const signals = [];
+  // 1) 중복 폭주 — 8/19 사고의 정확한 패턴
+  const heads = {}; for (const i of last24) { const k = i.title.slice(0, 14); heads[k] = (heads[k] || 0) + 1; }
+  for (const [k, n] of Object.entries(heads)) if (n >= 3) signals.push(`중복 폭주: 「${k}…」 24시간 내 ${n}건`);
+  // 2) 생성 급증
+  const avg = week.length / 7;
+  if (avg > 0 && last24.length > avg * 3 && last24.length >= 12) signals.push(`생성 급증: 24시간 ${last24.length}건 (7일 평균 ${avg.toFixed(1)}건의 ${(last24.length / avg).toFixed(1)}배)`);
+  // 3) 메모 비대 — 같은 건이 반복 처리되는 신호
+  for (const i of items) if ((i.memo || "").length > 500) signals.push(`메모 비대: 「${i.title.slice(0, 20)}」 ${i.memo.length}자 — 같은 건이 반복 처리 중일 수 있음`);
+  // 4) 결재 적체
+  const waiting = items.filter(i => i.status === "승인 대기").length;
+  if (waiting > 15) signals.push(`결재 적체: 승인 대기 ${waiting}건`);
+  // 5) 정지
+  if (items.length && !last24.length) signals.push(`정지: 24시간 동안 새 결과물 0건 — 엔진 확인 필요`);
+  // 6) 발행 단절
+  const approved7 = week.filter(i => i.status === "승인").length, published7 = week.filter(i => i.status === "발행").length;
+  if (approved7 >= 5 && published7 === 0) signals.push(`발행 단절: 7일간 승인 ${approved7}건인데 발행 0건 — 파이프라인이 끊겨 있음`);
+
+  if (!signals.length) return `리스크 정상 (24h ${last24.length}건 · 대기 ${waiting}건 · 7일 승인 ${approved7}/발행 ${published7})`;
+  // 이미 오늘 같은 경보를 올렸으면 중복 발령하지 않는다 (경보가 스팸이 되면 아무도 안 본다)
+  const today = kstNow().slice(0, 10);
+  if (items.some(i => i.title.startsWith(`리스크 경보 ${today}`))) return `리스크 신호 ${signals.length}건 — 오늘 경보 이미 발령됨`;
+  const j = await askJSON({ system: systemPrompt(cfg, "risk_watch"), model: cfg.staff.risk_watch.model, max_tokens: 900,
+    dry: { severity: "주의", stop_now: "", cause: "DRY" },
+    user: `조직 동작 점검에서 아래 신호가 걸렸습니다.\n\n${signals.map(s => `- ${s}`).join("\n")}\n\n최근 결과물:\n${summarize(items, 15)}\n\nJSON: {"severity":"긴급|주의","stop_now":"지금 당장 멈추거나 확인해야 할 것 1~2줄(없으면 빈칸)","cause":"원인 추정 2~3줄. 추측이면 추측이라고 명시"}\n\n과장하지 마세요. 정상 운영 범위면 severity는 '주의'입니다.` });
+  const md = `# 리스크 경보 ${today}\n\n등급: **${j.severity || "주의"}**\n\n## 걸린 신호\n${signals.map(s => `- ${s}`).join("\n")}\n\n## 지금 할 것\n${j.stop_now || "즉시 조치는 불필요. 관찰 계속."}\n\n## 원인 추정\n${j.cause || ""}\n\n---\n리스크 관리자 · ${kstNow().slice(0, 16)} · 편집장을 거치지 않은 대표 직보`;
+  const p = await N.createContent({ title: `리스크 경보 ${today} — ${j.severity || "주의"} ${signals.length}건`, status: "승인 대기", line: "보고", type: "보고서", team: "편집장", author: "관리자", week: w, basis: `조직 동작 점검 · 신호 ${signals.length}건 · 대표 직보`, body: md });
+  return `🚨 리스크 경보 ${j.severity} — ${signals.length}건 ${p.url}`;
+}
+
 const _R = {
   "ceo:instruct": ceo_instruct,
   "regulation_watcher:brief": regulation_watcher_brief, "trend_researcher:report": trend_researcher_report,
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
-  "regulation_reviewer:review": regulation_reviewer_review, "upload_recorder:instruct": upload_recorder_instruct,
+  "regulation_reviewer:review": regulation_reviewer_review, "quality_editor:review": quality_editor_review, "risk:scan": risk_scan, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
   "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup,
   "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,

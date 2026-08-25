@@ -63,6 +63,12 @@ export async function daily_standup(cfg) {
     await M.createMemory(cfg, { title: `요청 from ${l.me}: ${r.ask.slice(0, 40)}`, type: "업무 노트", staff: r.to, category: "판단 기록", week: w, summary: `${l.me}의 요청(${today}): ${r.ask}`, body: `# ${l.me} → ${r.to}\n\n${r.ask}\n\n(스탠드업 ${today})` }); sent++;
   }
   const md = `# 데일리 스탠드업 ${today}\n\n${lines.map(l => `## ${l.me}\n- 오늘: ${l.today || "-"}\n- 막힌 것: ${l.blocked || "없음"}\n${(l.requests || []).map(r => `- 요청 → ${r.to}: ${r.ask}`).join("\n")}`).join("\n\n")}\n\n---\n요청 ${sent}건은 상대 직원의 업무 노트로 전달됨.`;
+  try {
+    const tp = path.join(path.resolve(new URL("..", import.meta.url).pathname), "office/talk.json");
+    let talk = {}; try { talk = JSON.parse(fs.readFileSync(tp, "utf8")); } catch {}
+    talk.standup = { date: today, at: kstNow().slice(0, 16), lines: lines.map(l => ({ who: l.me, today: l.today || "", blocked: l.blocked || "", requests: l.requests || [] })), sent };
+    fs.mkdirSync(path.dirname(tp), { recursive: true }); fs.writeFileSync(tp, JSON.stringify(talk, null, 1));
+  } catch (e) { console.error("스탠드업 화면 저장 실패:", e.message.slice(0, 80)); }
   const p = await N.createContent({ title: `데일리 스탠드업 ${today}`, status: "승인", line: "보고", type: "스탠드업", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `${lines.length}명 참석 · 요청 ${sent}건 전달`, body: md });
   return `스탠드업 ${lines.length}명 · 요청 ${sent}건 ${p.url}`;
 }
