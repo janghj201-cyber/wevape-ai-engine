@@ -33,14 +33,91 @@ export async function regulation_watcher_brief(cfg) {
 }
 
 // ── 트렌드조사: 주간 트렌드 보고
+// v2 — 브라우저 눈으로 검색 결과 화면을 직접 보고, 숫자(조회수·좋아요·댓글)를 근거로
+//      "잘 된 것 vs 안 된 것"을 짝지어 비교해 재사용 가능한 '구조'를 뽑는다.
+//      뽑은 구조는 지식 카드(글 구조·첫 문장)로도 남겨 작가·패널 출근 때 주입된다.
+const TREND_QUERIES = [
+  ["동네 가게 릴스", "https://www.youtube.com/results?search_query=%EB%8F%99%EB%84%A4+%EA%B0%80%EA%B2%8C+%EC%87%BC%EC%B8%A0&sp=CAM%253D"],
+  ["매장 브이로그 쇼츠", "https://www.youtube.com/results?search_query=%EB%A7%A4%EC%9E%A5+%EB%B8%8C%EC%9D%B4%EB%A1%9C%EA%B7%B8+%EC%87%BC%EC%B8%A0&sp=CAM%253D"],
+  ["소상공인 홍보 영상", "https://www.youtube.com/results?search_query=%EC%86%8C%EC%83%81%EA%B3%B5%EC%9D%B8+%ED%99%8D%EB%B3%B4+%EC%98%81%EC%83%81&sp=CAM%253D"],
+  ["매장 블로그 후기", "https://search.naver.com/search.naver?where=blog&query=%EB%A7%A4%EC%9E%A5+%ED%9B%84%EA%B8%B0+%EB%8F%99%EB%84%A4"],
+];
 export async function trend_researcher_report(cfg) {
   const { items, w } = await ctx();
   if (byWeek(items, w).some(i => i.type === "트렌드 보고")) return `이미 ${w} 트렌드 보고 있음 — 건너뜀`;
   const pub = items.filter(i => i.status === "발행").slice(-10).map(i => `- ${i.title} (${i.pub_url || "URL 미기입"})`).join("\n") || "(발행 기록 없음)";
-  const body = await ask({ system: systemPrompt(cfg, "trend_researcher", await M.inject(cfg, "trend_researcher")), tools: ["web_search"], model: cfg.staff.trend_researcher.model,
-    user: `오늘 ${kstNow()}, 주차 ${w}. 지난 7~14일 반응 좋은 (a) 동네 가게·소상공인 콘텐츠 (b) 매장 일상·직원 브이로그 형식 (c) 인천·부천 지역 콘텐츠·행사 (d) 카드뉴스·POP 비주얼 흐름을 조사. 제품·맛·니코틴 트렌드 금지.\n최근 발행:\n${pub}\n\n출력(마크다운): # 주간 트렌드 보고 ${w}\n## 소재 10개 (각: 제목 / ①무엇이 통했나 / ②우리 매장 버전 / ③잘 붙는 라인 / ④규제 위험 메모 / ⑤출처)\n## 편집장에게 한 줄` });
-  const p = await N.createContent({ title: `주간 트렌드 보고 ${w}`, status: "승인 대기", line: "기획", type: "트렌드 보고", team: "트렌드조사", author: "쇼츠 트렌드 리서처", week: w, basis: "엔진 자동 실행 · 웹 조사", body });
-  return `트렌드 보고 ${w} 생성 ${p.url}`;
+
+  // 브라우저 눈: 검색 결과 화면을 통째로 캡처해 '실제로 뜨는 것'을 눈으로 본다
+  const shots = [], shotNames = [];
+  try {
+    const { snapUrl } = await import("./eyes.js");
+    const day = Math.floor(Date.now() / 86400e3);
+    for (let k = 0; k < 2; k++) {
+      const [name, url] = TREND_QUERIES[(day + k) % TREND_QUERIES.length];
+      const out = `/tmp/trend-${k}.png`;
+      if (await snapUrl(url, out)) { shots.push(out); shotNames.push(name); }
+    }
+  } catch (e) { console.error("트렌드 브라우저 눈 생략:", e.message.slice(0, 100)); }
+  const eyeNote = shots.length
+    ? `\n\n첨부: 검색 결과 화면 ${shotNames.join(", ")}. 첨부를 직접 보고 화면에 찍힌 제목·썸네일 문구·조회수를 그대로 읽어 근거로 쓰세요. 화면에서 읽은 숫자는 반드시 인용합니다.`
+    : "";
+
+  const j = await askJSON({
+    system: systemPrompt(cfg, "trend_researcher", await M.inject(cfg, "trend_researcher")),
+    tools: ["web_search"], model: cfg.staff.trend_researcher.model, max_tokens: 6000, images: shots,
+    dry: { pairs: [], rules: [], to_editor: "DRY" },
+    user: `오늘 ${kstNow()}, 주차 ${w}.${eyeNote}
+
+당신의 일은 '소재 나열'이 아니라 **왜 어떤 건 되고 어떤 건 안 됐는지 구조를 뽑는 것**입니다.
+
+지난 7~14일, 동네 가게·소상공인·매장 일상 콘텐츠에서 **잘 된 것과 비슷한데 안 된 것을 짝지어** 5쌍 찾으세요. 웹 검색과 첨부 화면을 함께 씁니다. 반드시 숫자(조회수·좋아요·댓글 수, 가능하면 좋아요 대비 댓글 비율)를 근거로 제시하고, 숫자를 못 구한 건은 짝에서 뺍니다.
+
+JSON:
+{"pairs":[{"topic":"무엇에 대한 콘텐츠인가","won":{"what":"잘 된 것 — 제목/첫 문장 실제 인용","numbers":"조회수·좋아요·댓글","why":"된 이유"},"lost":{"what":"안 된 것 — 실제 인용","numbers":"수치","why":"안 된 이유"},"structure":"두 사례의 차이를 재사용 가능한 규칙 한 줄로","our_version":"위베이프 매장 버전 제안 1줄","line":"블로그|SNS|영상|POP","risk":"규제 위험 메모","sources":["URL"]}],
+"rules":[{"title":"글·영상 구조 규칙 한 줄(30자, 구체적)","summary":"왜 통하는지 + 근거 숫자 + 실제 문구 인용, 2~4문장 250자","lines":["블로그","SNS","영상","POP","공통"],"confidence":"높음|보통|낮음","source":"URL"}],
+"to_editor":"편집장에게 한 줄"}
+
+rules는 pairs에서 뽑은 **문장·구성 규칙만** 3~5개. 예: 첫 문장에 무엇을 두는가, 효익과 분위기 중 무엇이 먼저인가, 길이, 마무리에서 무엇을 요청하는가. 소재나 아이디어는 rules에 넣지 마세요 — rules는 작가가 다음 글부터 그대로 적용할 규칙입니다.
+
+금지: 제품·맛·니코틴 트렌드, 출처 없는 주장, 숫자 없는 단정.
+
+최근 발행:
+${pub}` });
+
+  const P = j.pairs || [], R = j.rules || [];
+  const body = `# 주간 트렌드 보고 ${w}
+
+관찰 방식: 웹 검색 + 브라우저 눈(${shotNames.join(", ") || "화면 없음"})
+
+## 잘 된 것 vs 안 된 것 (${P.length}쌍)
+${P.map((p, i) => `### ${i + 1}. ${p.topic || ""} — [${p.line || "공통"}]
+- 통함: ${p.won?.what || ""} · ${p.won?.numbers || ""} → ${p.won?.why || ""}
+- 안 통함: ${p.lost?.what || ""} · ${p.lost?.numbers || ""} → ${p.lost?.why || ""}
+- **구조**: ${p.structure || ""}
+- 우리 버전: ${p.our_version || ""}
+- 규제 위험: ${p.risk || ""}
+- 출처: ${(p.sources || []).join(" / ")}`).join("\n\n") || "(없음)"}
+
+## 작가에게 넘길 구조 규칙 ${R.length}개
+${R.map(r => `- **${r.title}** — ${r.summary}${r.source ? ` [출처: ${r.source}]` : ""}`).join("\n") || "(없음)"}
+
+## 편집장에게
+${j.to_editor || ""}`;
+
+  const p = await N.createContent({ title: `주간 트렌드 보고 ${w}`, status: "승인 대기", line: "기획", type: "트렌드 보고", team: "트렌드조사", author: "쇼츠 트렌드 리서처", week: w, basis: `웹 조사 + 브라우저 눈 · 짝 비교 ${P.length}쌍 · 구조 규칙 ${R.length}개`, body });
+
+  // 구조 규칙을 지식 카드로 — 작가·패널이 출근할 때 주입받는다 (보고서만 쓰면 아무도 안 읽는다)
+  let saved = 0;
+  for (const r of R) {
+    if (!r.title || !r.source) continue;
+    try {
+      await M.createMemory(cfg, { title: r.title, type: "지식 카드", staff: "쇼츠 트렌드 리서처", category: "글 구조·첫 문장",
+        lines: r.lines?.length ? r.lines : ["공통"], tags: ["검색어"], confidence: r.confidence || "보통", source: r.source, week: w,
+        summary: r.summary || "", body: `# ${r.title}\n\n${r.summary}\n\n- 출처: ${r.source}\n- 주간 트렌드 관찰에서 도출 · ${kstNow().slice(0, 16)}` });
+      saved++;
+    } catch (e) { console.error("구조 카드 저장 실패:", e.message.slice(0, 80)); }
+  }
+  return `트렌드 보고 ${w} 생성 (짝 ${P.length} · 구조 카드 ${saved}장) ${p.url}`;
 }
 
 // ── 편집장: 기획 회의 (병렬 의견 → 취합) + 회의록

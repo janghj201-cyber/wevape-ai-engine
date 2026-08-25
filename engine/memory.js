@@ -166,7 +166,9 @@ export async function panel_study(cfg) {
   for (const [id, [cat, focus]] of Object.entries(PANEL_STUDY)) {
     if (!cfg.staff[id]) continue;
     const me = NAME(cfg, id);
-    const known = DRY ? "" : (await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "직원", select: { equals: me } }] }, 120)).map(k => k.title).join(" / ").slice(0, 2500);
+    const mine = DRY ? [] : await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "직원", select: { equals: me } }] }, 120);
+    const known = mine.map(k => k.title).join(" / ").slice(0, 2500);
+    const seenSources = new Set(mine.map(k => (k.source || "").split("?")[0]).filter(Boolean));
     // 영화 보는 사람은 '직접 눈으로' 본다: 브랜드 참고 포스터 2장(교대) + 우리가 만든 최신 히어로 이미지
     let imgs = [], imgNote = "";
     if (id === "panel_film") {
@@ -189,6 +191,20 @@ export async function panel_study(cfg) {
             if (mi) imgNote += `\n최우선 첨부: 대표가 자료함에 직접 올린 이미지 ${mi}장 — 대표가 원하는 결을 보여주는 자료다. 가장 무겁게 관찰해 카드로 남긴다(source는 "자료함").`;
           }
         } catch (e) { console.error("자료함 이미지 생략:", e.message.slice(0, 80)); }
+        // 자료함 링크: 대표가 URL만 던져도 조직이 스스로 열어보고 분석한다 (이미 카드로 남긴 주소는 건너뜀)
+        try {
+          if (cfg.materials_page) {
+            const mt = await N.readPageText(cfg.materials_page);
+            const urls = [...new Set((mt.match(/https?:\/\/[^\s)\]]+/g) || []).map(u => u.replace(/[.,)\]]+$/, "")))]
+              .filter(u => !seenSources.has(u.split("?")[0])).slice(0, 2);
+            const { snapUrl } = await import("./eyes.js");
+            let li = 0;
+            for (const u of urls) {
+              const out = `/tmp/material-link-${li}.png`;
+              if (await snapUrl(u, out)) { imgs.push(out); imgNote += `\n자료함 링크 ${li + 1}: ${u} — 화면을 직접 보고, 화면에 찍힌 제목·문구·반응 수치를 그대로 읽어 관찰 카드로 남기세요. 이 카드의 source는 "${u}" 로 적습니다(같은 주소를 다시 분석하지 않기 위함).`; li++; }
+            }
+          }
+        } catch (e) { console.error("자료함 링크 눈 생략:", e.message.slice(0, 80)); }
         // 브라우저 눈: 네이버 이미지 검색 화면을 통째로 찍어 실물 사례를 직접 보게 (playwright 설치된 잡에서만)
         try {
           const { snapUrl } = await import("./eyes.js");
