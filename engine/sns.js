@@ -33,6 +33,36 @@ const CATEGORY_MAP = { "리뷰형": "B.매장정보", "후기형": "D.매장일�
 const CHANNEL = "인스타+쓰레드";   // 사진 필요 채널. 사진은 발행 시스템이 자동 생성한다.
 const LEN_MIN = 60, LEN_MAX = 200;
 
+// 재시도 차단 — 이 파일은 10분 폴링 안에서 돌기 때문에,
+// 실패한 건에 표식을 남기지 않으면 같은 글이 하루 288번 다시 처리된다.
+//   [SNS보류]            규제로 막힌 건. 사람이 표식을 지울 때까지 재시도 안 함.
+//   [SNS대기 YYYY-MM-DD]  일시적 거절(하루 상한 등). 날짜가 바뀌면 다시 시도.
+// 표식은 항상 하나만 남는다. 메모가 무한히 길어지지 않는다.
+const MARK_HOLD = "[SNS보류]";
+const MARK_WAIT = "[SNS대기";
+
+function todayKst() {
+  const d = new Date(Date.now() + 9 * 3600 * 1000);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function stamp(memo, mark) {
+  const base = String(memo || "")
+    .split("/")
+    .map((s) => s.trim())
+    .filter((s) => s && !s.startsWith(MARK_HOLD) && !s.startsWith(MARK_WAIT))
+    .join(" / ");
+  return base ? `${base} / ${mark}` : mark;
+}
+
+function shouldSkip(memo) {
+  const m = String(memo || "");
+  if (m.includes(MARK_HOLD)) return true;
+  if (m.includes(`${MARK_WAIT} ${todayKst()}]`)) return true;
+  return false;
+}
+
 /** 발행 시스템 호출 — Content-Type은 반드시 text/plain (JSON이면 구글이 막는다) */
 async function call(path, payload) {
   const code = process.env.WEVAPE_SNS_CODE;
@@ -79,11 +109,19 @@ async function toSns(cfg, item, bodyText, banned) {
  * 상태가 '승인'이고 아직 pub_url이 없는 블로그 글이 대상.
  */
 export async function sns_publish(cfg, maxPosts = 3) {
-  const banned = await call("banned", {}).then((d) => d.words.filter((w) => w.length < 20));
+  let banned;
+  try {
+    const _b = await call("banned", {});
+    banned = _b.words.filter((w) => w.length < 20);
+  } catch (e) {
+    // 발행 시스템이 응답하지 않으면 여기서 끝낸다.
+    // throw하면 events_poll의 뒷단까지 함께 멈춘다.
+    return "SNS 발행 건너뜀 — 발행 시스템 응답 없음: " + String(e.message || e).slice(0, 80);
+  }
   const items = await N.queryContent(undefined, [{ timestamp: "created_time", direction: "ascending" }]);
 
   const todo = items
-    .filter((i) => i.status === "승인" && i.line === "블로그" && !i.pub_url)
+    .filter((i) => i.status === "승인" && i.line === "블로그" && !i.pub_url && !shouldSkip(i.memo))
     .slice(0, maxPosts);
 
   if (!todo.length) return "발행할 승인 건 없음";
@@ -94,7 +132,14 @@ export async function sns_publish(cfg, maxPosts = 3) {
   for (const it of todo) {
     try {
       const store = STORE_MAP[(it.stores || [])[0]];
-      if (!store) { out.push(`건너뜀 — 지점 매핑 없음: ${it.stores}`); continue; }
+      if (!store) {
+        // 매핑에 없는 지점은 사람이 고쳐야 한다. 계속 재시도할 이유가 없다.
+        await N.updateContent(it.id, {
+          memo: stamp(it.memo, MARK_HOLD + " 지점 매핑 없음: " + it.stores),
+        });
+        out.push("보류: " + it.title + " — 지점 매핑 없음");
+        continue;
+      }
 
       // 1) SNS 길이로 요약
       const bodyText = await N.readPageText(it.id);
@@ -117,11 +162,13 @@ export async function sns_publish(cfg, maxPosts = 3) {
         chk = await call("check", { text, channel: CHANNEL });
       }
 
+      // 두 번 다 실패 — 자동으로는 못 고친다. 사람이 볼 때까지 보류.
       if (!chk.ok) {
+        const why = (chk.hits && chk.hits.length) ? chk.hits.join(",") : "길이 규격";
         await N.updateContent(it.id, {
-          memo: `${it.memo ? it.memo + " / " : ""}SNS 발행 보류 — ${chk.hits?.join(",") || "길이 규격"}`,
+          memo: stamp(it.memo, MARK_HOLD + " 규제 " + why),
         });
-        out.push(`보류: ${it.title} — ${chk.hits?.join(",") || "길이"}`);
+        out.push("보류: " + it.title + " — " + why);
         continue;
       }
 
@@ -137,12 +184,14 @@ export async function sns_publish(cfg, maxPosts = 3) {
       });
       slot += 20;
 
+      // 인입 거절은 대개 하루 발행 상한(8건)이다. 오늘은 여기서 멈춘다.
+      // 계속 돌면 나머지 글도 같은 이유로 거절되며 호출만 소모한다.
       if (!r.accepted) {
         await N.updateContent(it.id, {
-          memo: `${it.memo ? it.memo + " / " : ""}SNS 인입 거절 — ${r.reason}`,
+          memo: stamp(it.memo, MARK_WAIT + " " + todayKst() + "] " + r.reason),
         });
-        out.push(`거절: ${it.title} — ${r.reason}`);
-        continue;
+        out.push("대기: " + it.title + " — " + r.reason + " (내일 재시도)");
+        break;
       }
 
       // 5) 노션에 발행 기록
@@ -150,10 +199,18 @@ export async function sns_publish(cfg, maxPosts = 3) {
         status: "발행",
         pub_url: `SNS 예약 #${r.row} · ${r.publishAt}`,
         review: `${it.review ? it.review + " / " : ""}SNS 발행 시스템 접수 (${r.publishAt} ${CHANNEL})`,
+        memo: stamp(it.memo, ""),   // 남아 있던 표식 정리
       });
       out.push(`발행 예약: ${it.title} → ${store} ${r.publishAt}`);
     } catch (e) {
-      out.push(`오류: ${it.title} — ${String(e.message || e).slice(0, 100)}`);
+      // 예상 못 한 오류도 표식을 남긴다. 안 남기면 10분 뒤 또 같은 글이 온다.
+      const msg = String(e.message || e).slice(0, 60);
+      try {
+        await N.updateContent(it.id, {
+          memo: stamp(it.memo, MARK_WAIT + " " + todayKst() + "] 오류 " + msg),
+        });
+      } catch (_) { /* 노션까지 막힌 상황 — 다음 회차에 다시 본다 */ }
+      out.push("오류: " + it.title + " — " + msg);
     }
   }
 
