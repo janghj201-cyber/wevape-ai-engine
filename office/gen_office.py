@@ -28,6 +28,28 @@ a{color:inherit}
 .top .clock{font-variant-numeric:tabular-nums;font-size:12px;opacity:.9;text-align:right;line-height:1.35}
 .scene{display:none;max-width:1400px;margin:0 auto;padding:16px 18px 44px}
 .scene.on{display:block}
+.talkwrap{max-width:940px;margin:0 auto}
+.talkwrap h2{font-size:22px;margin:8px 0 4px}
+.talksub{color:var(--muted);font-size:13px;margin-bottom:18px}
+.tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.tabs button{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 16px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;color:var(--ink)}
+.tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tpane{display:none}.tpane.on{display:block}
+.rnd{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.say{display:flex;gap:11px;margin:0 0 14px;align-items:flex-start}
+.say .av{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
+.say .bd{flex:1;min-width:0}
+.say .nm{font-size:13px;font-weight:800;margin-bottom:3px}
+.say .tx{background:var(--card);border:1px solid var(--line);border-radius:3px 12px 12px 12px;padding:10px 14px;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.say.obj .tx{background:#fff5f5;border-color:#f3c5c5}
+.say.agr .tx{background:#f2f9f4;border-color:#c9e6d3}
+.tag2{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;margin-right:6px}
+.tag2.o{background:#c53030;color:#fff}.tag2.a{background:#2f855a;color:#fff}.tag2.p{background:#6b46c1;color:#fff}
+.ruling{background:#fffbe8;border:1px solid #e8d9a0;border-left:4px solid #d69e2e;border-radius:0 10px 10px 0;padding:16px 20px;margin:18px 0;font-size:14px;line-height:1.75;white-space:pre-wrap}
+.ruling b{color:#8a6a12}
+.confl{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 10px;font-size:13.5px;line-height:1.65}
+.confl .who{font-weight:800;color:#c53030}
+.empty{color:var(--muted);padding:28px 0;text-align:center;font-size:14px}
 .badge{display:inline-block;min-width:20px;padding:1px 7px;border-radius:999px;background:var(--wait);color:#fff;font-size:11px;font-weight:800;text-align:center;vertical-align:middle}
 .badge.zero{background:#cbd5e1}
 .status{display:inline-block;font-size:10px;padding:1px 7px;border-radius:999px;color:#fff;font-weight:700;vertical-align:middle}
@@ -177,6 +199,7 @@ a{color:inherit}
 
 <section class="scene" id="s-ceo"></section>
 <section class="scene" id="s-hall"></section>
+<section class="scene" id="s-talk"></section>
 <section class="scene" id="s-marketing">
 <div class="grid">
   <div class="left" id="left"></div>
@@ -278,6 +301,56 @@ const cnt = s=>items.filter(i=>i.status===s).length;
   }).join("");
   document.getElementById('s-hall').innerHTML = `<div class="hall"><h2>🚪 복도</h2><p class="sub">문을 열면 그 부서의 사무실이 보입니다. 잠긴 문은 아직 채용 전 부서 — 정의서와 시계만 있으면 열립니다.</p><div class="doors">${doors}</div>
   <div style="margin-top:22px"><a class="btn ghost" href="#ceo">← 대표실로</a></div></div>`;
+})();
+
+/* ─────────── 장면: 회의록 (직원들이 실제로 주고받은 말) ─────────── */
+(function(){
+  const T = D.talk || {};
+  const col = (n)=>{ const s=D.staff.find(x=>x.name===n); return s?s.color:"#6b7280"; };
+  const ini = (n)=> (n||"?").slice(0,1);
+  const say=(who,text,cls="",tag="")=>`<div class="say ${cls}"><div class="av" style="background:${col(who)}">${esc(ini(who))}</div><div class="bd"><div class="nm">${esc(who)}</div><div class="tx">${tag}${esc(text)}</div></div></div>`;
+
+  const M=T.meeting;
+  let meetHtml = '<div class="empty">아직 회의가 열리지 않았습니다. 매주 월요일 09:00에 기획 회의가 열립니다.</div>';
+  if(M){
+    const r1=(M.round1||[]).map(x=>say(x.who,x.text)).join("");
+    const r2=(M.round2||[]).map(x=>{
+      const a=(x.agree||[]).map(y=>say(x.who,`${y.to} 님 의견에 동의합니다. ${y.why}`,"agr",'<span class="tag2 a">동의</span>')).join("");
+      const o=(x.object||[]).map(y=>say(x.who,`${y.to} 님, "${y.what}" 이 부분은 반대입니다. ${y.why}\n→ 대신: ${y.instead}`,"obj",'<span class="tag2 o">반대</span>')).join("");
+      const p=x.add?say(x.who,x.add,"",'<span class="tag2 p">추가</span>'):"";
+      return a+o+p;
+    }).join("") || '<div class="empty">2라운드에서 이견이 없었습니다.</div>';
+    const cf=(M.conflicts||[]).length
+      ? (M.conflicts||[]).map(c=>`<div class="confl"><span class="who">${esc(c.from)}</span> → <b>${esc(c.to)}</b> · "${esc(String(c.what||"").slice(0,90))}"<br>${esc(c.why||"")}<br>→ 대안: ${esc(c.instead||"")}</div>`).join("")
+      : '<div class="empty">충돌 없음</div>';
+    meetHtml = `<div class="rnd">1라운드 — 각자 의견</div>${r1}
+      <div class="rnd">2라운드 — 반박과 동의</div>${r2}
+      <div class="rnd">충돌한 지점 ${(M.conflicts||[]).length}건</div>${cf}
+      <div class="rnd">편집장 판정</div><div class="ruling">${esc(M.ruling||"")}</div>`;
+  }
+
+  const S=T.standup;
+  let upHtml = '<div class="empty">아직 스탠드업 기록이 없습니다. 매일 09:30에 열립니다.</div>';
+  if(S){
+    upHtml = (S.lines||[]).map(l=>{
+      const req=(l.requests||[]).map(r=>`\n→ ${r.to} 님께: ${r.ask}`).join("");
+      return say(l.who, `오늘: ${l.today||"-"}${l.blocked?`\n막힌 것: ${l.blocked}`:""}${req}`);
+    }).join("") + `<div class="empty">요청 ${S.sent||0}건이 상대 직원의 업무 노트로 전달됐습니다.</div>`;
+  }
+
+  document.getElementById('s-talk').innerHTML = `<div class="talkwrap">
+    <h2>🗣️ 회의록</h2>
+    <div class="talksub">직원들이 실제로 주고받은 말입니다. 회의는 2라운드로 진행되며, 서로의 의견을 읽고 반박합니다. 갈리는 지점은 편집장이 「규제 &gt; 브랜드 &gt; 근거 있는 의견 &gt; 취향」 순으로 판정합니다.
+    ${M?`최근 회의: ${esc(M.title||"")} · ${esc(M.at||"")}`:""}${S?` · 최근 스탠드업: ${esc(S.date||"")}`:""}</div>
+    <div class="tabs"><button class="on" data-t="meet">기획 회의${M&&M.conflicts?` (충돌 ${M.conflicts.length})`:""}</button><button data-t="up">데일리 스탠드업</button></div>
+    <div class="tpane on" id="tp-meet">${meetHtml}</div>
+    <div class="tpane" id="tp-up">${upHtml}</div>
+    <div style="margin-top:26px"><a class="btn ghost" href="#marketing">← 마케팅 방으로</a> <a class="btn ghost" href="#ceo">대표실</a></div>
+  </div>`;
+  document.querySelectorAll('#s-talk .tabs button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#s-talk .tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('#s-talk .tpane').forEach(x=>x.classList.toggle('on', x.id==='tp-'+b.dataset.t));
+  });
 })();
 
 /* ─────────── 장면 3: 마케팅 방 (기존 사무실) ─────────── */
