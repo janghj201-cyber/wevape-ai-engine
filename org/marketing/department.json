@@ -63,6 +63,11 @@
       "team": "검수",
       "model": "claude-sonnet-4-5"
     },
+    "quality_editor": {
+      "file": "staff/quality_editor.md",
+      "team": "검수",
+      "model": "claude-sonnet-4-5"
+    },
     "upload_recorder": {
       "file": "staff/upload_recorder.md",
       "team": "업로드",
@@ -109,6 +114,11 @@
       "tools": [
         "web_search"
       ]
+    },
+    "risk_watch": {
+      "file": "staff/risk_watch.md",
+      "team": "관제",
+      "model": "claude-haiku-4-5"
     }
   },
   "jobs": {
@@ -146,7 +156,8 @@
       "cron": "30 0 * * *",
       "kst": "매일 09:30",
       "run": [
-        "company:standup"
+        "company:standup",
+        "risk:scan"
       ]
     },
     "daily_write": {
@@ -154,7 +165,8 @@
       "kst": "매일 10:00",
       "run": [
         "blog_writer:write",
-        "regulation_reviewer:review"
+        "regulation_reviewer:review",
+        "quality_editor:review"
       ]
     },
     "pop_make": {
