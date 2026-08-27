@@ -33,6 +33,11 @@ const CATEGORY_MAP = { "리뷰형": "B.매장정보", "후기형": "D.매장일�
 const CHANNEL = "인스타+쓰레드";   // 사진 필요 채널. 사진은 발행 시스템이 자동 생성한다.
 const LEN_MIN = 60, LEN_MAX = 200;
 
+// 직원 선택 — SNS 발행원이 등록돼 있으면 그 정의서를, 없으면 블로그 작가를 쓴다.
+// department.json 수정 PR과 이 PR의 머지 순서가 어긋나도 오류가 나지 않게 하기 위함.
+const WHO = (cfg) => (cfg.staff.sns_publisher ? "sns_publisher" : "blog_writer");
+const MODEL = (cfg) => (cfg.staff.sns_publisher || cfg.staff.blog_writer).model;
+
 // 재시도 차단 — 이 파일은 10분 폴링 안에서 돌기 때문에,
 // 실패한 건에 표식을 남기지 않으면 같은 글이 하루 288번 다시 처리된다.
 //   [SNS보류]            규제로 막힌 건. 사람이 표식을 지울 때까지 재시도 안 함.
@@ -89,8 +94,8 @@ function nextSlot(offsetMin = 0) {
 /** 블로그 원문(1,500~2,000자)을 SNS 길이로 줄인다 */
 async function toSns(cfg, item, bodyText, banned) {
   return await ask({
-    system: systemPrompt(cfg, "blog_writer"),
-    model: cfg.staff.blog_writer.model,
+    system: systemPrompt(cfg, WHO(cfg)),
+    model: MODEL(cfg),
     max_tokens: 900,
     user:
       `아래 블로그 글을 인스타그램·스레드용 짧은 게시글로 다시 쓰세요.\n\n` +
@@ -152,7 +157,7 @@ export async function sns_publish(cfg, maxPosts = 3) {
       if (!chk.ok) {
         text = (await ask({
           system: systemPrompt(cfg, "regulation_reviewer"),
-          model: cfg.staff.blog_writer.model,
+          model: MODEL(cfg),
           max_tokens: 900,
           user:
             `아래 게시글이 반려됐습니다. 지적된 부분만 고쳐 다시 쓰세요.\n` +
