@@ -192,7 +192,7 @@ a{color:inherit}
 </style></head><body>
 <div class="top">
   <h1>🏢 위베이프 AI 조직 · 본사</h1>
-  <nav class="crumb"><a href="#ceo" data-s="ceo">👤 대표실</a><i>›</i><a href="#hall" data-s="hall">🚪 복도</a><i>›</i><a href="#marketing" data-s="marketing" id="crumb-dept">📣 마케팅 방</a></nav>
+  <nav class="crumb"><a href="#ceo" data-s="ceo">👤 대표실</a><i>›</i><a href="#hall" data-s="hall">🚪 복도</a><i>›</i><a href="#marketing" data-s="marketing" id="crumb-dept">📣 마케팅 방</a><i>·</i><a href="#talk" data-s="talk">🗣️ 회의록</a></nav>
   <span class="sp"></span>
   <div class="clock"><div id="now"></div><div id="next"></div></div>
 </div>
