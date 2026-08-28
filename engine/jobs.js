@@ -292,6 +292,64 @@ export async function editor_weekly_memo(cfg) {
   return `주간 결과 메모 ${w} ${p.url}`;
 }
 
+// ── 품질 편집자: 승인 대기로 올라온 결과물을 관리자 눈으로 100점 채점 → 70점 미만은 되돌린다
+// 무한 루프 방지: 되돌린 건은 메모에 [품질반환] 표식을 남기고, 같은 건은 최대 2회까지만 되돌린다.
+const QMARK = "[품질반환";
+export async function quality_editor_review(cfg, maxItems = 6) {
+  const { items } = await ctx();
+  const targets = items.filter(i => i.status === "승인 대기" && (i.line === "블로그" || i.line === "POP") && !/품질 \d+점/.test(i.review || "")).slice(0, maxItems);
+  if (!targets.length) return "품질 채점 대상 없음";
+  const guide = readOpt(cfg, "brand_guide.md").slice(0, 4000);
+  const out = [];
+  for (const it of targets) {
+    const back = ((it.memo || "").match(/\[품질반환/g) || []).length;
+    let text = "";
+    try { text = await N.readPageText(it.id); } catch {}
+    const r = await askJSON({ system: systemPrompt(cfg, "quality_editor", await M.inject(cfg, "quality_editor", { max: 6 })), model: cfg.staff.quality_editor.model, max_tokens: 2000,
+      dry: { total: 80, scores: {}, why: "DRY", weakest: "-", fix_example: "-" },
+      user: `관리자(대표)는 지금까지 우리 결과물에 100점 만점 중 5점을 줬습니다. 당신은 그 관리자의 눈으로 아래 결과물을 채점합니다. 후하게 주지 마세요.\n\n종류: ${it.line} · 제목: ${it.title}\n지점: ${(it.stores || []).join(",")}\n\n[브랜드 가이드 발췌]\n${guide}\n\n[결과물]\n${text.slice(0, 9000)}\n\nJSON:\n{"total":0~100,"scores":{"목적적합":0~25,"브랜드일치":0~25,"완성도":0~25,"실전성":0~25},"why":"왜 이 점수인지 3~5줄. 관리자가 볼 때 무엇이 부족한가.","weakest":"가장 약한 한 가지","fix_example":"그 한 가지를 어떻게 고치면 되는지 실제 예시(문장 또는 프롬프트)를 그대로 써 줄 것"}\n\n채점 기준: 목적적합=위베이프 매장을 알리는 물건으로 말이 되는가(업종·지점·직영/재고 메시지). 브랜드일치=가이드의 무드·타이포·색·금지사항. 완성도=바로 인쇄/발행해도 되는 수준인가. 실전성=고객이 이걸 보고 매장에 오는가.` });
+    const total = Number(r.total) || 0;
+    const summary = `품질 ${total}점 (목적 ${r.scores?.목적적합 ?? "-"} / 브랜드 ${r.scores?.브랜드일치 ?? "-"} / 완성 ${r.scores?.완성도 ?? "-"} / 실전 ${r.scores?.실전성 ?? "-"}) · 약점: ${String(r.weakest || "").slice(0, 60)}`;
+    if (total < 70 && back < 2) {
+      await N.updateContent(it.id, { status: "초안", review: summary, memo: `${it.memo ? it.memo + " / " : ""}${QMARK}${back + 1}회] ${String(r.weakest || "").slice(0, 60)} → ${String(r.fix_example || "").slice(0, 160)}` });
+      out.push(`${it.title} → ${total}점 · 반환(${back + 1}회)`);
+    } else {
+      await N.updateContent(it.id, { review: summary + (total < 70 ? " · 반환 한도 도달, 관리자 판단 필요" : "") });
+      out.push(`${it.title} → ${total}점 · 통과`);
+    }
+    try { await M.note(cfg, "quality_editor", "quality:review", `${it.title} ${total}점 — ${String(r.why || "").slice(0, 300)}`); } catch {}
+  }
+  return out.join("\n");
+}
+
+// ── 리스크 관리자: 코드로 먼저 신호를 계산하고, 신호가 있을 때만 사람을 부른다(=크레딧 낭비 방지). 하루 1건.
+export async function risk_scan(cfg) {
+  const { items, w } = await ctx();
+  const today = kstNow().slice(0, 10);
+  if (items.some(i => i.title.startsWith("리스크 경보") && i.title.includes(today))) return "오늘 리스크 경보 이미 발행";
+  const now = Date.now();
+  const age = (i) => (now - new Date(i.created).getTime()) / 3600e3;
+  const d1 = items.filter(i => age(i) <= 24), d2 = items.filter(i => age(i) > 24 && age(i) <= 48), d7 = items.filter(i => age(i) <= 168);
+  const sig = [];
+  const titles = {}; for (const i of d1) { const k = i.title.slice(0, 20); titles[k] = (titles[k] || 0) + 1; }
+  const dup = Object.entries(titles).filter(([, n]) => n >= 3);
+  if (dup.length) sig.push(`같은 제목 결과물이 24시간 안에 ${dup.map(([k, n]) => `「${k}」 ${n}건`).join(", ")} — 중복 생성 루프 의심`);
+  if (d1.length >= 3 * Math.max(d2.length, 1) && d1.length >= 9) sig.push(`24시간 생성량 ${d1.length}건으로 전일(${d2.length}건) 대비 3배 이상 — 폭주 의심`);
+  const longMemo = items.filter(i => (i.memo || "").length > 500);
+  if (longMemo.length) sig.push(`메모가 500자를 넘긴 카드 ${longMemo.length}건 — 같은 카드에 반복 기입되고 있음`);
+  const pend = items.filter(i => i.status === "승인 대기");
+  if (pend.length > 15) sig.push(`승인 대기 ${pend.length}건 적체 — 관리자 결재 병목`);
+  if (d1.length === 0) sig.push("24시간 동안 새 결과물 0건 — 엔진 정지 또는 작업 실패 의심");
+  const app7 = d7.filter(i => i.status === "승인").length, pub7 = d7.filter(i => i.status === "발행").length;
+  if (app7 >= 5 && pub7 === 0) sig.push(`최근 7일 승인 ${app7}건인데 발행 0건 — 승인이 실제 발행으로 이어지지 않음(발행 경로 단절)`);
+  if (!sig.length) return "리스크 신호 없음";
+  const body = await ask({ system: systemPrompt(cfg, "risk_watch", await M.inject(cfg, "risk_watch", { max: 6 })), model: cfg.staff.risk_watch.model, max_tokens: 2000,
+    user: `아래는 오늘 조직에서 코드로 감지한 이상 신호입니다. 대표에게 바로 올라가는 「리스크 경보」 한 장을 마크다운으로 쓰세요.\n\n[감지된 신호]\n${sig.map((s, n) => `${n + 1}. ${s}`).join("\n")}\n\n[최근 결과물]\n${summarize(items, 15)}\n\n구성: ① 한 줄 요약(가장 급한 것) ② 신호별로 「무슨 일인가 / 방치하면 무엇이 깨지는가 / 지금 할 일」 ③ 대표가 직접 눌러야 하는 것이 있으면 마지막에 「대표 확인 필요」로 분리. 추측은 추측이라고 쓰고, 숫자는 위 신호에 있는 숫자만 쓰세요.` });
+  const p = await N.createContent({ title: `리스크 경보 ${today} — ${sig.length}건`, status: "승인 대기", line: "보고", type: "보고서", team: "편집장", author: "관리자", week: w, basis: `자동 감지 신호 ${sig.length}건`, review: `리스크: ${sig[0].slice(0, 120)}`, body });
+  try { await M.note(cfg, "risk_watch", "risk:scan", `경보 ${sig.length}건: ${sig.join(" / ").slice(0, 400)}`); } catch {}
+  return `리스크 경보 ${sig.length}건 → ${p.url}`;
+}
+
 // ── 이벤트 폴링: 승인되면 즉시 다음 단계 (기획안 승인 → 글 작성 / 검수중 → 검수 / 승인 글 → 지시서)
 export async function events_poll(cfg) {
   const out = [];
