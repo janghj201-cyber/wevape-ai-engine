@@ -3,13 +3,16 @@
 const esc = (x) => String(x ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@700&family=Playfair+Display:ital,wght@0,700;1,700&family=Noto+Sans+SC:wght@700;900&display=swap" rel="stylesheet">`;
 
+// full-bleed 사진 위에서는 무드와 무관하게 어두운 스크림을 쓴다.
+// (파스텔 무드의 흰 글자 + 밝은 사진 = 글자가 사라진다. 2026-08-28 관리자 지적)
+const FULL_SCRIM = "linear-gradient(180deg,rgba(6,5,14,.90) 0%,rgba(6,5,14,.52) 30%,rgba(6,5,14,.28) 48%,rgba(6,5,14,.60) 74%,rgba(6,5,14,.95) 100%)";
 const MOODS = {
   "glow-dark": {
     bg: `background:#0b0b0f;`,
     layers: (a) => `<div class="blob" style="left:20%;top:38%;width:70mm;height:70mm;background:${a};opacity:.55"></div><div class="blob" style="left:60%;top:60%;width:60mm;height:60mm;background:#7b2cff;opacity:.5"></div><div class="orb" style="left:78%;top:14%;width:9mm;height:9mm;background:radial-gradient(circle at 30% 30%,#fff,${a} 40%,#7b2cff)"></div><div class="orb" style="left:10%;top:70%;width:6mm;height:6mm;background:radial-gradient(circle at 30% 30%,#fff,#7b2cff 45%,${a})"></div><svg class="arrow" style="left:6mm;top:22mm" width="90" height="90" viewBox="0 0 60 60"><path d="M50 8 Q10 10 12 52" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round"/><path d="M4 44 L12 54 L22 46" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     h1: (a) => `color:#fff;font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;letter-spacing:.5mm;`,
     h1b: (a) => `color:${a};font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;text-shadow:0 0 6mm ${a}88;`,
-    ink: "#fff", sub: "#e9d5ff", cap: "#c9b6ff", zh: "#fff", ban: (a) => `background:${a};color:#0b0b0f`, badgeBg: (a) => a, badgeInk: "#0b0b0f",
+    font: "Anton,'Black Han Sans','Noto Sans KR',sans-serif", ink: "#fff", sub: "#e9d5ff", cap: "#c9b6ff", zh: "#fff", ban: (a) => `background:${a};color:#0b0b0f`, badgeBg: (a) => a, badgeInk: "#0b0b0f",
     scrim: "linear-gradient(180deg,rgba(11,11,15,.80) 0%,rgba(11,11,15,.28) 40%,rgba(11,11,15,.20) 58%,rgba(11,11,15,.85) 100%)",
   },
   "pop-purple": {
@@ -17,7 +20,7 @@ const MOODS = {
     layers: (a) => `<div class="half" style="background:${a}"></div><svg class="squig" style="left:6mm;top:8mm" width="90" height="60" viewBox="0 0 90 60"><path d="M4 40 C20 0,30 60,46 20 S72 40,86 8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg><svg class="squig" style="right:8mm;top:52%" width="70" height="60" viewBox="0 0 70 60"><path d="M6 10 C40 -6,64 30,30 40 S60 62,66 30" fill="none" stroke="#ff2fd0" stroke-width="5" stroke-linecap="round"/></svg><div class="star" style="left:80%;top:9%;color:#fff">✱</div><div class="star" style="left:6%;top:56%;color:#fff">✱</div>`,
     h1: (a) => `color:${a};font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;`,
     h1b: (a) => `color:#fff;font-family:Anton,'Black Han Sans','Noto Sans KR',sans-serif;text-transform:uppercase;`,
-    ink: "#fff", sub: "#fff", cap: "#1a0a4a", zh: "#1a0a4a", ban: (a) => `background:#1a0a4a;color:${a}`, badgeBg: () => "#ff2fd0", badgeInk: "#fff",
+    font: "Anton,'Black Han Sans','Noto Sans KR',sans-serif", ink: "#fff", sub: "#fff", cap: "#1a0a4a", zh: "#1a0a4a", ban: (a) => `background:#1a0a4a;color:${a}`, badgeBg: () => "#ff2fd0", badgeInk: "#fff",
     scrim: "linear-gradient(180deg,rgba(38,10,110,.82) 0%,rgba(38,10,110,.32) 42%,rgba(38,10,110,.24) 60%,rgba(26,10,74,.88) 100%)",
   },
   "holo-pastel": {
@@ -25,7 +28,7 @@ const MOODS = {
     layers: (a) => `<div class="heart" style="left:66%;top:6%;width:34mm;height:34mm"></div><div class="heart" style="left:-6%;top:60%;width:26mm;height:26mm;opacity:.7"></div><div class="ring"></div><div class="spark" style="left:8%;top:30%">✦</div><div class="spark" style="left:86%;top:24%">✦</div><div class="spark" style="left:76%;top:80%">✦</div><div class="spark small" style="left:14%;top:84%">✦</div><div class="wm">WEVAPE · BUBBLEMON · WEVAPE · BUBBLEMON ·</div>`,
     h1: (a) => `color:transparent;-webkit-text-stroke:.55mm #fff;font-family:'Playfair Display','Noto Serif KR',serif;text-transform:uppercase;letter-spacing:.8mm;text-shadow:0 0 5mm rgba(255,255,255,.55);`,
     h1b: (a) => `color:#fff;font-family:'Playfair Display','Noto Serif KR',serif;font-style:italic;text-transform:uppercase;`,
-    ink: "#fff", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#fff", ban: (a) => `background:rgba(255,255,255,.55);color:#4a2a7a`, badgeBg: () => "#fff", badgeInk: "#a03aa0",
+    font: "'Black Han Sans','Noto Sans KR',sans-serif", ink: "#fff", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#fff", ban: (a) => `background:rgba(255,255,255,.55);color:#4a2a7a`, badgeBg: () => "#fff", badgeInk: "#a03aa0",
     scrim: "linear-gradient(180deg,rgba(255,240,252,.80) 0%,rgba(255,240,252,.28) 42%,rgba(255,240,252,.22) 60%,rgba(255,240,252,.86) 100%)",
   },
   "sky-pastel": {
@@ -33,7 +36,7 @@ const MOODS = {
     layers: (a) => `<div class="snow" style="left:6%;top:14%">❄</div><div class="snow" style="left:84%;top:40%;font-size:16mm">❄</div><div class="snow" style="left:12%;top:74%;font-size:9mm">❄</div><div class="spark" style="left:70%;top:10%;color:#7b2cff">✦</div><div class="balloon" style="left:82%;top:4%;background:#ff6fa8"></div><div class="balloon" style="left:88%;top:8%;background:#7b2cff"></div>`,
     h1: (a) => `color:#7b2cff;font-family:'Playfair Display','Noto Serif KR',serif;text-transform:uppercase;letter-spacing:.6mm;`,
     h1b: (a) => `color:${a};font-family:'Playfair Display','Noto Serif KR',serif;font-style:italic;text-transform:uppercase;`,
-    ink: "#2b1a5a", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#4a2a7a", ban: (a) => `background:#7b2cff;color:#fff`, badgeBg: () => "#7b2cff", badgeInk: "#fff",
+    font: "'Black Han Sans','Noto Sans KR',sans-serif", ink: "#2b1a5a", sub: "#4a2a7a", cap: "#4a2a7a", zh: "#4a2a7a", ban: (a) => `background:#7b2cff;color:#fff`, badgeBg: () => "#7b2cff", badgeInk: "#fff",
     scrim: "linear-gradient(180deg,rgba(240,248,255,.82) 0%,rgba(240,248,255,.30) 42%,rgba(240,248,255,.22) 60%,rgba(255,255,255,.88) 100%)",
   },
 };
@@ -42,13 +45,17 @@ export function renderPop2(spec, opts = {}) {
   const mood = MOODS[spec.mood] || MOODS["glow-dark"]; const a = spec.accent || "#ff2fd0";
   const dev = opts.deviceUrl; // office/brand/device.png 있으면 히어로
   const full = opts.heroFull; // 생성 이미지 — 포스터 '전체 배경'으로 깔고 무드 스크림으로 글자 대비 확보
+  const F = (mood.font || "Anton,'Black Han Sans','Noto Sans KR',sans-serif");
+  const h1A = full ? `color:#fff;font-family:${F};letter-spacing:.4mm;text-shadow:0 .8mm 4mm rgba(0,0,0,.65);` : mood.h1(a);
+  const h1B = full ? `color:${a};font-family:${F};letter-spacing:.4mm;text-shadow:0 0 6mm ${a}66,0 .8mm 4mm rgba(0,0,0,.6);` : mood.h1b(a);
+  const inkF = full ? "#fff" : mood.ink, subF = full ? "#f2e6ff" : mood.sub;
   const [h1a, h1b] = Array.isArray(spec.headline) ? spec.headline : String(spec.headline || "").split("\n");
   const L = Math.max((h1a || "").length, (h1b || "").length); const size = spec.headline_size || (L > 9 ? 21 : L > 6 ? 27 : 33);
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${esc(spec.title)}</title>${FONTS}
 <style>@page{size:A4 portrait;margin:0}html,body{margin:0;background:#e5e7eb}
-.pop{width:210mm;height:297mm;margin:0 auto;position:relative;overflow:hidden;${mood.bg}font-family:'Noto Sans KR',sans-serif;color:${mood.ink}}
+.pop{width:210mm;height:297mm;margin:0 auto;position:relative;overflow:hidden;${mood.bg}font-family:'Noto Sans KR',sans-serif;color:${inkF}}
 .heroBg{position:absolute;inset:0;background-size:cover;background-position:center}
-.scrim{position:absolute;inset:0;background:${mood.scrim || "linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,.2) 45%,rgba(0,0,0,.75))"}}
+.scrim{position:absolute;inset:0;background:${full ? FULL_SCRIM : (mood.scrim || "linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,.2) 45%,rgba(0,0,0,.75))")}}
 .blob{position:absolute;border-radius:50%;filter:blur(14mm)}
 .orb{position:absolute;border-radius:50%;filter:blur(.3mm);box-shadow:0 0 6mm rgba(255,255,255,.4)}
 .arrow,.squig{position:absolute}
@@ -65,16 +72,16 @@ export function renderPop2(spec, opts = {}) {
 .brand{display:flex;justify-content:space-between;align-items:center;font-family:'Bebas Neue',Anton,sans-serif;font-size:7mm;letter-spacing:1mm;opacity:.95}
 .badge{display:inline-block;padding:1.2mm 5mm;border-radius:999px;font-family:'Noto Sans KR',sans-serif;font-weight:900;font-size:4.6mm;letter-spacing:.3mm;background:${mood.badgeBg(a)};color:${mood.badgeInk};transform:rotate(-3deg)}
 h1{margin:10mm 0 0;font-size:${size}mm;line-height:.98;font-weight:900;word-break:keep-all;position:relative}
-h1 .a{display:block;${mood.h1(a)}}h1 .b{display:block;${mood.h1b(a)}}
-.sub{margin:6mm 0 0;font-size:7.2mm;font-weight:700;color:${mood.sub};letter-spacing:.2mm}
+h1 .a{display:block;${h1A}}h1 .b{display:block;${h1B}}
+.sub{margin:6mm 0 0;font-size:7.2mm;font-weight:700;color:${subF};letter-spacing:.2mm}
 .hero{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:60mm}
 .hero img{max-height:118mm;max-width:80%;filter:drop-shadow(0 8mm 10mm rgba(0,0,0,.35))}
 .hero .big{font-family:Anton,'Black Han Sans',sans-serif;font-size:54mm;line-height:1;color:transparent;-webkit-text-stroke:.6mm ${mood.ink};opacity:.35;letter-spacing:2mm}
 .foot{position:relative}
-.kr{font-size:6.4mm;font-weight:700;color:${mood.ink}}
-.zh{font-family:'Noto Sans SC','Noto Sans KR',sans-serif;font-size:7.4mm;font-weight:900;color:${full ? mood.ink : mood.zh};margin-top:1mm}
+.kr{font-size:6.4mm;font-weight:700;color:${inkF};text-shadow:0 .5mm 2mm rgba(0,0,0,.5)}
+.zh{font-family:'Noto Sans SC','Noto Sans KR',sans-serif;font-size:7.4mm;font-weight:900;color:${full ? "#fff" : mood.zh};text-shadow:${full ? "0 .5mm 2mm rgba(0,0,0,.5)" : "none"};margin-top:1mm}
 .ban{margin-top:5mm;padding:2.6mm 5mm;font-family:'Bebas Neue',Anton,sans-serif;font-size:5.6mm;letter-spacing:.8mm;${mood.ban(a)};display:flex;justify-content:space-between}
-.law{margin-top:2.5mm;font-size:3.2mm;opacity:.8;color:${full ? mood.ink : mood.cap}}
+.law{margin-top:2.5mm;font-size:3.2mm;opacity:.85;color:${full ? "#fff" : mood.cap}}
 @media print{html,body{background:#fff}}</style></head><body>
 <div class="pop">${full ? `<div class="heroBg" style="background-image:url('${full}')"></div><div class="scrim"></div>` : mood.layers(a)}
 <div class="wrap">
