@@ -378,7 +378,7 @@ POP 누적 ${pops.length}건 (반려 ${pops.filter(i => i.status === "반려").l
 최근 결과물:
 ${summarize(items, 12)}`;
 
-  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 })), model: cfg.staff.editor.model, max_tokens: 2500,
+  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 })), model: cfg.staff.editor.model, max_tokens: 5000,
     dry: { kind: "질문", understanding: "DRY", answer: "DRY", tasks: [], store: "", note_to_staff: "" },
     user: `대표가 방금 명령창으로 지시했습니다:\n"""${memo}"""\n\n당신은 편집장입니다. 대표는 이 창에 쓴 것에 대해 **반드시 답을 받아야 합니다.** 접수만 하고 끝내면 안 됩니다.\n\n# 지금 조직 상태\n${state}\n\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점: ${cfg.stores.join(", ")}\n\nJSON:\n{"kind":"질문|지시|방침","understanding":"지시 요해 1줄","answer":"대표에게 드리는 회신. 마크다운. 질문이면 **지금 아는 사실로 정면으로 답하고**(모르면 모른다고), 지시면 무엇을 어떻게 하겠다고, 방침이면 어디에 어떻게 반영하겠다고 씁니다. 두루뭉술한 말 금지 — 숫자와 구체적 사실로. 800~2000자.","tasks":["즉시 실행할 작업 0~3개 (위 목록 안에서만)"],"store":"특정 지점 대상이면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n\n판단: POP을 다시/새로 만들라면 pop_designer:make(+store). 글이면 blog_writer:write. 회의를 열라면 editor:meeting. 조사 지시면 해당 조사. 질문이면 tasks는 비우고 answer에 제대로 답하세요.` });
 

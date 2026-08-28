@@ -24,9 +24,31 @@ export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [
 }
 
 // JSON 응답 강제: 모델이 ```json ... ``` 또는 순수 JSON을 내도록 하고 파싱
+// 모델이 ```json 펜스를 붙이거나 max_tokens에서 잘려도 살려낸다 (2026-08-28: 잘린 응답으로 대표 지시가 실패)
+function parseLoose(txt) {
+  let t = String(txt || "").trim();
+  t = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  const i = t.search(/[{\[]/); if (i > 0) t = t.slice(i);
+  try { return JSON.parse(t); } catch {}
+  // 잘린 JSON 복구: 문자열이 열려 있으면 닫고, 남은 괄호를 역순으로 닫는다
+  let inStr = false, esc = false; const stack = [];
+  for (const c of t) {
+    if (esc) { esc = false; continue; }
+    if (c === "\\") { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === "{" || c === "[") stack.push(c === "{" ? "}" : "]");
+    else if (c === "}" || c === "]") stack.pop();
+  }
+  let fixed = t.replace(/,\s*$/, "");
+  if (inStr) fixed += '"';
+  fixed = fixed.replace(/,\s*$/, "") + stack.reverse().join("");
+  return JSON.parse(fixed);
+}
+
 export async function askJSON(opts) {
-  const txt = await ask({ ...opts, user: opts.user + "\n\n반드시 유효한 JSON만 출력하세요. 설명 문장 금지." });
+  const txt = await ask({ ...opts, user: opts.user + "\n\n반드시 유효한 JSON만 출력하세요. 설명 문장·코드펜스 금지." });
   if (DRY) return opts.dry ?? {};
-  const m = txt.match(/```json\s*([\s\S]*?)```/) || txt.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  return JSON.parse(m ? m[1] || m[0] : txt);
+  try { return parseLoose(txt); }
+  catch (e) { console.error("JSON 파싱 실패(원문 앞 300자):", String(txt).slice(0, 300)); throw e; }
 }
