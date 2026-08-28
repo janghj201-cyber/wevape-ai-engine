@@ -387,16 +387,27 @@ POP 누적 ${pops.length}건 (반려 ${pops.filter(i => i.status === "반려").l
 최근 결과물:
 ${summarize(items, 12)}`;
 
-  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 })), model: cfg.staff.editor.model, max_tokens: 5000,
-    dry: { kind: "질문", understanding: "DRY", answer: "DRY", tasks: [], store: "", note_to_staff: "" },
-    user: `대표가 방금 명령창으로 지시했습니다:\n"""${memo}"""\n\n당신은 편집장입니다. 대표는 이 창에 쓴 것에 대해 **반드시 답을 받아야 합니다.** 접수만 하고 끝내면 안 됩니다.\n\n# 지금 조직 상태\n${state}\n\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점: ${cfg.stores.join(", ")}\n\nJSON:\n{"kind":"질문|지시|방침","understanding":"지시 요해 1줄","answer":"대표에게 드리는 회신. 마크다운. 질문이면 **지금 아는 사실로 정면으로 답하고**(모르면 모른다고), 지시면 무엇을 어떻게 하겠다고, 방침이면 어디에 어떻게 반영하겠다고 씁니다. 두루뭉술한 말 금지 — 숫자와 구체적 사실로. 800~2000자.","tasks":["즉시 실행할 작업 0~3개 (위 목록 안에서만)"],"store":"특정 지점 대상이면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n\n판단: POP을 다시/새로 만들라면 pop_designer:make(+store). 글이면 blog_writer:write. 회의를 열라면 editor:meeting. 조사 지시면 해당 조사. 질문이면 tasks는 비우고 answer에 제대로 답하세요.` });
+  // 긴 마크다운을 JSON 문자열 안에 넣게 하면 자주 깨진다 → 라우팅(JSON, 짧게)과 회신(평문 마크다운)을 나눈다
+  const sysE = systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 }));
+  let plan = { kind: "지시", understanding: memo.slice(0, 80), tasks: [], store: "", note_to_staff: "" };
+  try {
+    plan = await askJSON({ system: sysE, model: cfg.staff.editor.model, max_tokens: 900,
+      dry: { kind: "질문", understanding: "DRY", tasks: [], store: "", note_to_staff: "" },
+      user: `대표가 명령창으로 지시했습니다:\n"""${memo}"""\n\n# 지금 조직 상태\n${state}\n\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점: ${cfg.stores.join(", ")}\n\n짧은 JSON만:\n{"kind":"질문|지시|방침","understanding":"지시 요해 1줄","tasks":["즉시 실행할 작업 0~3개, 위 목록 안에서만"],"store":"특정 지점 대상이면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n\n판단: POP을 다시/새로 만들라면 pop_designer:make(+store). 글이면 blog_writer:write. 회의를 열라면 editor:meeting. 조사 지시면 해당 조사. 질문이면 tasks는 비웁니다. 여기서는 긴 설명을 쓰지 마세요.` });
+  } catch (e) { console.error("지시 라우팅 실패(기본값으로 진행):", e.message.slice(0, 100)); }
+
+  let answer = "";
+  try {
+    answer = await ask({ system: sysE, model: cfg.staff.editor.model, max_tokens: 5000,
+      user: `대표가 명령창으로 지시했습니다:\n"""${memo}"""\n\n당신은 편집장입니다. 대표는 이 창에 쓴 것에 대해 **반드시 답을 받아야 합니다.** 접수만 하고 끝내면 안 됩니다.\n\n# 지금 조직 상태\n${state}\n\n대표에게 드리는 회신을 마크다운으로 쓰세요. 질문이면 **지금 아는 사실로 정면으로 답하고**(모르면 모른다고), 지시면 무엇을 어떻게 하겠다고, 방침이면 어디에 어떻게 반영하겠다고 씁니다. 두루뭉술한 말 금지 — 숫자와 구체적 사실로. 800~2000자. JSON이나 코드펜스로 감싸지 말고 마크다운 본문만 출력하세요.` });
+  } catch (e) { console.error("회신 생성 실패:", e.message.slice(0, 100)); }
 
   const kind = plan.kind || "지시";
-  const body = `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)} · 유형: ${kind}\n\n---\n\n# 편집장 회신\n\n**요해**: ${plan.understanding || ""}\n\n${plan.answer || "(회신 생성 실패)"}\n\n**직원 전달**: ${plan.note_to_staff || "-"}`;
+  const body = `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)} · 유형: ${kind}\n\n---\n\n# 편집장 회신\n\n**요해**: ${plan.understanding || ""}\n\n${answer || "(회신 생성 실패 — 관리자 확인 필요)"}\n\n**직원 전달**: ${plan.note_to_staff || "-"}`;
   const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 34)}${memo.length > 34 ? "…" : ""}`, status: "승인 대기", line: "기획", type: "대표 지시", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `대표실 명령창 · ${kind} · 편집장 회신 포함`, review: `편집장 회신: ${String(plan.understanding || "").slice(0, 200)}`, body });
 
   if (plan.store && cfg.stores.includes(plan.store)) process.env.POP_FORCE_STORE = plan.store;
-  try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수·회신: ${memo.slice(0, 120)} / 회신: ${String(plan.answer || "").slice(0, 200)}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
+  try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수·회신: ${memo.slice(0, 120)} / 회신: ${String(answer).slice(0, 200)}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
 
   const out = [`지시 접수 + 회신 → ${rec.url}`, `유형: ${kind} · 해석: ${plan.understanding || "-"}`];
   const ran = [];

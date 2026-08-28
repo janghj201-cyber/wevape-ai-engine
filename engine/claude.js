@@ -30,6 +30,17 @@ function parseLoose(txt) {
   t = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   const i = t.search(/[{\[]/); if (i > 0) t = t.slice(i);
   try { return JSON.parse(t); } catch {}
+  // 문자열 안에 그대로 들어간 줄바꿈·탭을 이스케이프 (모델이 마크다운을 값에 넣을 때 흔한 사고)
+  const escapeRaw = (x) => { let o = "", inS = false, e = false;
+    for (const c of x) {
+      if (e) { o += c; e = false; continue; }
+      if (c === "\\") { o += c; e = true; continue; }
+      if (c === '"') { inS = !inS; o += c; continue; }
+      if (inS && (c === "\n" || c === "\r" || c === "\t")) { o += c === "\n" ? "\\n" : c === "\r" ? "\\r" : "\\t"; continue; }
+      o += c;
+    } return o; };
+  t = escapeRaw(t);
+  try { return JSON.parse(t); } catch {}
   // 잘린 JSON 복구: 문자열이 열려 있으면 닫고, 남은 괄호를 역순으로 닫는다
   let inStr = false, esc = false; const stack = [];
   for (const c of t) {
