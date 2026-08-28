@@ -303,105 +303,43 @@ export async function events_poll(cfg) {
   return out.join("\n");
 }
 
-// ── 대표 지시: 대표실 명령창 → 편집장이 접수·해석 → 필요한 직원을 즉시 출근시켜 실행
+// ── 대표 지시: 대표실 명령창 → 편집장이 접수·해석 → 필요한 직원을 즉시 출근시켜 실행 → **반드시 회신을 남긴다**
 export async function ceo_instruct(cfg) {
   const memo = (process.env.INPUT_MEMO || "").trim();
   if (!memo) return "지시 내용 없음 (memo 비어 있음)";
-  const { w } = await ctx();
-  const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 40)}${memo.length > 40 ? "…" : ""}`, status: "승인", line: "기획", type: "대표 지시", team: "편집장", author: "관리자", week: w, basis: "대표실 명령창", body: `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)}` });
-  const ALLOWED = ["blog_writer:write", "pop_designer:make", "regulation_watcher:brief", "trend_researcher:report", "industry_reader:read", "panel:study", "upload_recorder:instruct", "editor:plan", "company:standup"];
-  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 5 })), model: cfg.staff.editor.model, max_tokens: 900,
-    dry: { understanding: "DRY", tasks: [], store: "", note_to_staff: "" },
-    user: `대표가 방금 명령창으로 지시했다:\n"${memo}"\n\n당신은 편집장이다. 이 지시를 접수하고 무엇을 실행할지 결정하라.\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점 목록: ${cfg.stores.join(", ")}\nJSON: {"understanding":"지시 요해 한 줄","tasks":["즉시 실행할 작업 0~3개 (목록 안에서만)"],"store":"특정 지점 대상 지시면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n판단 기준: POP을 다시/새로 만들라면 pop_designer:make(+store). 글을 쓰거나 고치라면 blog_writer:write. 조사·공부 지시면 해당 조사 작업. 방침·톤 지시처럼 지금 실행할 게 없으면 tasks는 빈 배열 — 지시는 어차피 모든 직원의 다음 출근 때 기억으로 전달된다.` });
+  const { items, w } = await ctx();
+  const ALLOWED = ["blog_writer:write", "pop_designer:make", "regulation_watcher:brief", "trend_researcher:report", "industry_reader:read", "panel:study", "upload_recorder:instruct", "editor:plan", "editor:meeting", "company:standup", "quality_editor:review", "risk:scan"];
+
+  // 조직 현황 — 질문형 지시에 답하려면 편집장이 지금 상태를 알아야 한다
+  const w1 = items.filter(i => i.week === w);
+  const pops = items.filter(i => i.line === "POP");
+  const state = `이번 주(${w}) 결과물 ${w1.length}건 · 전체 ${items.length}건
+상태: 승인 ${items.filter(i => i.status === "승인").length} / 승인 대기 ${items.filter(i => i.status === "승인 대기").length} / 반려 ${items.filter(i => i.status === "반려").length} / 발행 ${items.filter(i => i.status === "발행").length}
+POP 누적 ${pops.length}건 (반려 ${pops.filter(i => i.status === "반려").length}건)
+최근 관리자 메모: ${items.filter(i => i.memo).slice(-4).map(i => `「${i.title.slice(0, 18)}」 ${i.memo.slice(0, 60)}`).join(" / ") || "없음"}
+최근 결과물:
+${summarize(items, 12)}`;
+
+  const plan = await askJSON({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 })), model: cfg.staff.editor.model, max_tokens: 2500,
+    dry: { kind: "질문", understanding: "DRY", answer: "DRY", tasks: [], store: "", note_to_staff: "" },
+    user: `대표가 방금 명령창으로 지시했습니다:\n"""${memo}"""\n\n당신은 편집장입니다. 대표는 이 창에 쓴 것에 대해 **반드시 답을 받아야 합니다.** 접수만 하고 끝내면 안 됩니다.\n\n# 지금 조직 상태\n${state}\n\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점: ${cfg.stores.join(", ")}\n\nJSON:\n{"kind":"질문|지시|방침","understanding":"지시 요해 1줄","answer":"대표에게 드리는 회신. 마크다운. 질문이면 **지금 아는 사실로 정면으로 답하고**(모르면 모른다고), 지시면 무엇을 어떻게 하겠다고, 방침이면 어디에 어떻게 반영하겠다고 씁니다. 두루뭉술한 말 금지 — 숫자와 구체적 사실로. 800~2000자.","tasks":["즉시 실행할 작업 0~3개 (위 목록 안에서만)"],"store":"특정 지점 대상이면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n\n판단: POP을 다시/새로 만들라면 pop_designer:make(+store). 글이면 blog_writer:write. 회의를 열라면 editor:meeting. 조사 지시면 해당 조사. 질문이면 tasks는 비우고 answer에 제대로 답하세요.` });
+
+  const kind = plan.kind || "지시";
+  const body = `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)} · 유형: ${kind}\n\n---\n\n# 편집장 회신\n\n**요해**: ${plan.understanding || ""}\n\n${plan.answer || "(회신 생성 실패)"}\n\n**직원 전달**: ${plan.note_to_staff || "-"}`;
+  const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 34)}${memo.length > 34 ? "…" : ""}`, status: "승인 대기", line: "기획", type: "대표 지시", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `대표실 명령창 · ${kind} · 편집장 회신 포함`, review: `편집장 회신: ${String(plan.understanding || "").slice(0, 200)}`, body });
+
   if (plan.store && cfg.stores.includes(plan.store)) process.env.POP_FORCE_STORE = plan.store;
-  try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수: ${memo.slice(0, 150)} / 해석: ${plan.understanding || ""} / 직원 전달: ${plan.note_to_staff || ""} / 실행: ${(plan.tasks || []).join(", ") || "다음 근무 반영"}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
-  const out = [`지시 접수 → ${rec.url}`, `편집장 해석: ${plan.understanding || "-"}`];
+  try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수·회신: ${memo.slice(0, 120)} / 회신: ${String(plan.answer || "").slice(0, 200)}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
+
+  const out = [`지시 접수 + 회신 → ${rec.url}`, `유형: ${kind} · 해석: ${plan.understanding || "-"}`];
+  const ran = [];
   for (const t of (plan.tasks || []).filter(t => ALLOWED.includes(t)).slice(0, 3)) {
-    try { const r = await _R[t](cfg); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); } catch (e) { out.push(`▶ ${t} 실패: ${e.message.slice(0, 120)}`); }
+    try { const r = await _R[t](cfg); ran.push(`${t}: ${String(r).slice(0, 200)}`); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); }
+    catch (e) { ran.push(`${t} 실패: ${e.message.slice(0, 80)}`); out.push(`▶ ${t} 실패: ${e.message.slice(0, 120)}`); }
   }
+  // 실행 결과까지 회신에 이어 붙인다 — 대표는 한 페이지에서 답과 결과를 함께 본다
+  if (ran.length) { try { await N.req("PATCH", `/blocks/${rec.id}/children`, { children: N.mdToBlocks(`\n---\n\n## 즉시 실행 결과\n${ran.map(r => `- ${r}`).join("\n")}\n\n(${kstNow().slice(0, 16)})`, 90) }); } catch (e) { console.error("실행결과 append 실패:", e.message.slice(0, 60)); } }
   return out.join("\n");
-}
-
-// ── 품질 편집자: 규제를 통과한 건을 "손님이 끝까지 읽는가"로 다시 본다 (70점 미만은 작성자에게 반환)
-const QMARK = "[품질반환";
-export async function quality_editor_review(cfg, maxItems = 6) {
-  if (!cfg.staff.quality_editor) return "품질 편집자 미배치";
-  const { items, w } = await ctx();
-  const tone = readOpt(cfg, "tone_guide.md"), brand = readOpt(cfg, "brand_guide.md");
-  // 규제 통과(= 승인 대기)이고 아직 품질 판정을 안 받은 것. 반환 2회를 넘긴 건은 통과시킨다(무한 반복 금지).
-  const cnt = (m) => (String(m || "").match(/\[품질반환/g) || []).length;
-  const todo = items.filter(i => i.status === "승인 대기" && (i.line === "블로그" || i.line === "POP")
-    && !/품질 \d+점/.test(i.review || "")).slice(0, maxItems);
-  if (!todo.length) return "품질 검수 대상 없음";
-  const out = [];
-  for (const it of todo) {
-    try {
-      const body = (await N.readPageText(it.id)).slice(0, 6000);
-      const guide = it.line === "POP" ? brand : tone;
-      const j = await askJSON({ system: systemPrompt(cfg, "quality_editor", await M.inject(cfg, "quality_editor", { line: it.line, stores: it.stores })) + `\n\n# 기준 문서\n${guide.slice(0, 3000)}`,
-        model: cfg.staff.quality_editor.model, max_tokens: 1200,
-        dry: { total: 80, scores: {}, weakest: "", fix_example: "", why: "DRY" },
-        user: `아래 ${it.line} 결과물을 채점하세요. 규제는 보지 마세요(다른 검수관이 이미 봤습니다). 오직 "손님이 끝까지 읽는가"만.
-
-제목: ${it.title}
-지점: ${(it.stores || []).join(",")} · 유형: ${it.type}
-본문:
-${body}
-
-JSON: {"total":0~100,"scores":{"첫문장":0~25,"사람":0~20,"구체성":0~20,"AI냄새":0~20,"마무리":0~15},"why":"항목별 근거 3~4줄","weakest":"가장 약한 대목을 원문에서 그대로 인용","fix_example":"그 대목을 당신이 직접 고쳐 쓴 문장(작성자가 그대로 참고할 수 있게)"}
-
-70점 미만이면 반환됩니다. 후하게 주지 마세요 — 대표가 '딱딱하다'고 반복 지적한 조직입니다.` });
-      const score = Number(j.total) || 0;
-      const verdict = `품질 ${score}점 — ${j.why || ""}`.slice(0, 1800);
-      if (score < 70 && cnt(it.memo) < 2) {
-        await N.updateContent(it.id, { status: "초안", review: `${it.review ? it.review + " / " : ""}${verdict}`,
-          memo: `${it.memo ? it.memo + " / " : ""}${QMARK} ${score}점] 약한 곳: "${String(j.weakest || "").slice(0, 80)}" → 이렇게: "${String(j.fix_example || "").slice(0, 160)}"` });
-        out.push(`반환(${score}점): ${it.title}`);
-      } else {
-        await N.updateContent(it.id, { review: `${it.review ? it.review + " / " : ""}${verdict}${score < 70 ? " (2회 반환 후 상신 — 대표 판단 요청)" : ""}` });
-        out.push(`통과(${score}점): ${it.title}`);
-      }
-    } catch (e) { out.push(`오류: ${it.title} — ${String(e.message).slice(0, 60)}`); }
-  }
-  return out.join("\n");
-}
-
-// ── 리스크 관리자: 조직이 이상하게 돌고 있는지만 본다. 정상이면 아무것도 만들지 않는다.
-export async function risk_scan(cfg) {
-  if (!cfg.staff.risk_watch) return "리스크 관리자 미배치";
-  const { items, w } = await ctx();
-  const now = Date.now(), H = 3600e3;
-  const at = (i) => new Date(i.t || i.created || 0).getTime();
-  const last24 = items.filter(i => now - at(i) < 24 * H);
-  const week = items.filter(i => now - at(i) < 7 * 24 * H);
-  const signals = [];
-  // 1) 중복 폭주 — 8/19 사고의 정확한 패턴
-  const heads = {}; for (const i of last24) { const k = i.title.slice(0, 14); heads[k] = (heads[k] || 0) + 1; }
-  for (const [k, n] of Object.entries(heads)) if (n >= 3) signals.push(`중복 폭주: 「${k}…」 24시간 내 ${n}건`);
-  // 2) 생성 급증
-  const avg = week.length / 7;
-  if (avg > 0 && last24.length > avg * 3 && last24.length >= 12) signals.push(`생성 급증: 24시간 ${last24.length}건 (7일 평균 ${avg.toFixed(1)}건의 ${(last24.length / avg).toFixed(1)}배)`);
-  // 3) 메모 비대 — 같은 건이 반복 처리되는 신호
-  for (const i of items) if ((i.memo || "").length > 500) signals.push(`메모 비대: 「${i.title.slice(0, 20)}」 ${i.memo.length}자 — 같은 건이 반복 처리 중일 수 있음`);
-  // 4) 결재 적체
-  const waiting = items.filter(i => i.status === "승인 대기").length;
-  if (waiting > 15) signals.push(`결재 적체: 승인 대기 ${waiting}건`);
-  // 5) 정지
-  if (items.length && !last24.length) signals.push(`정지: 24시간 동안 새 결과물 0건 — 엔진 확인 필요`);
-  // 6) 발행 단절
-  const approved7 = week.filter(i => i.status === "승인").length, published7 = week.filter(i => i.status === "발행").length;
-  if (approved7 >= 5 && published7 === 0) signals.push(`발행 단절: 7일간 승인 ${approved7}건인데 발행 0건 — 파이프라인이 끊겨 있음`);
-
-  if (!signals.length) return `리스크 정상 (24h ${last24.length}건 · 대기 ${waiting}건 · 7일 승인 ${approved7}/발행 ${published7})`;
-  // 이미 오늘 같은 경보를 올렸으면 중복 발령하지 않는다 (경보가 스팸이 되면 아무도 안 본다)
-  const today = kstNow().slice(0, 10);
-  if (items.some(i => i.title.startsWith(`리스크 경보 ${today}`))) return `리스크 신호 ${signals.length}건 — 오늘 경보 이미 발령됨`;
-  const j = await askJSON({ system: systemPrompt(cfg, "risk_watch"), model: cfg.staff.risk_watch.model, max_tokens: 900,
-    dry: { severity: "주의", stop_now: "", cause: "DRY" },
-    user: `조직 동작 점검에서 아래 신호가 걸렸습니다.\n\n${signals.map(s => `- ${s}`).join("\n")}\n\n최근 결과물:\n${summarize(items, 15)}\n\nJSON: {"severity":"긴급|주의","stop_now":"지금 당장 멈추거나 확인해야 할 것 1~2줄(없으면 빈칸)","cause":"원인 추정 2~3줄. 추측이면 추측이라고 명시"}\n\n과장하지 마세요. 정상 운영 범위면 severity는 '주의'입니다.` });
-  const md = `# 리스크 경보 ${today}\n\n등급: **${j.severity || "주의"}**\n\n## 걸린 신호\n${signals.map(s => `- ${s}`).join("\n")}\n\n## 지금 할 것\n${j.stop_now || "즉시 조치는 불필요. 관찰 계속."}\n\n## 원인 추정\n${j.cause || ""}\n\n---\n리스크 관리자 · ${kstNow().slice(0, 16)} · 편집장을 거치지 않은 대표 직보`;
-  const p = await N.createContent({ title: `리스크 경보 ${today} — ${j.severity || "주의"} ${signals.length}건`, status: "승인 대기", line: "보고", type: "보고서", team: "편집장", author: "관리자", week: w, basis: `조직 동작 점검 · 신호 ${signals.length}건 · 대표 직보`, body: md });
-  return `🚨 리스크 경보 ${j.severity} — ${signals.length}건 ${p.url}`;
 }
 
 const _R = {

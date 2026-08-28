@@ -71,7 +71,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const usedMoods = items.filter(i => i.line === "POP" && i.week === w).map(i => (i.basis.match(/mood=([a-z-]+)/) || [])[1]).filter(Boolean);
     const dsys = systemPrompt(cfg, "pop_designer", await M.inject(cfg, "pop_designer", { line: "POP", stores: [store] }) + `\n\n# 브랜드 비주얼 가이드 (반드시)\n${brand}`);
     const specPrompt = `${store}점 A4 세로 POP 1장 스펙(v2)을 JSON으로:
-{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","hero_prompt":"포스터 '전체 배경'이 될 사진 프롬프트(영문 2~3문장). 반드시 구체적 피사체·장면이 있어야 한다 — 예: 밤거리의 네온 반사, 유리 진열장과 따뜻한 카운터 조명, 젖은 아스팔트 위 보라 네온, 여름 저녁 하늘과 간판 실루엣. 지금은 ${kmon}월(${season}) — 계절감을 맞춘다. 빈 배경·텍스처만·파티클만은 실격. 금지: 사람, 연기·증기, 제품·패키지, 글자·로고","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
+{"title":"[${store}] 용도 요약","mood":"${MOOD_KEYS.join("|")}","accent":"#hex(무드 팔레트 안에서)","hero_image_url":"기억 카드 중 [브랜드 자산] 기기/로고 이미지 직접 URL(https, png/jpg)이 있으면 그 중 하나, 없으면 빈칸","hero_prompt":"포스터 '전체 배경'이 될 사진 프롬프트(영문 2~3문장). **브랜드 가이드 6-1의 허용 소재 표에서 장면을 먼저 고르고** 무드·조명·계절을 붙인다. 허용: 네온 간판 골목/젖은 아스팔트 반사/상가 야경/유리문 너머 조명/셔터 올린 가게 앞/유리 진열장 반사/카운터 조명/퇴근길 거리/저녁 스카이라인. 장소가 한국 도시 상가 거리임이 드러나야 한다. 지금은 ${kmon}월(${season}). **금지(하나라도 있으면 실격): 음식·음료·디저트(아이스크림/커피/케이크/과일), 동물, 꽃, 사람·손, 제품·패키지, 연기·수증기, 카페·식당으로 오인될 실내, 소재 없는 순수 추상, 글자·로고.** 스스로에게 물어라 — 이 사진이 전자담배 매장 문 앞에 붙어 있을 때 말이 되는가?","tag":"상단 배지 4~6자","headline":["1줄(2~7자, 영문 대문자 또는 한글)","2줄(2~7자)"],"sub":"부제 1줄 22자 이내(지점 위치·상황)","hero_word":"중앙 큰 아웃라인 영문 한 단어(WEVAPE/OPEN/HELLO 등)","kr":"하단 한글 안내 1줄 18자 이내(기기 관리 7-1 또는 응대 또는 직영·재고)","zh":"중국어 1줄(直营·库存充足 의미)","purpose":"부착 위치·용도","check":"기준서 10항목 자체 점검 ○×"}
 헤드라인 후보(시 읽는 사람): ${JSON.stringify(cands.candidates || [])} — 후보 중 리듬 있는 것을 2줄로 쪼개거나 다듬어 쓴다. 위치명·지점명만 있는 헤드라인 금지.
 이번 주 이미 쓴 무드(중복 금지): ${usedMoods.join(", ") || "없음"}
 지점: ${sm.name} / ${sm.addr} / ${sm.phone}
@@ -116,7 +116,11 @@ export async function pop_designer_make(cfg, maxPops = 2) {
     const devPath = path.join(ROOT, "office/brand/device.png");
     let heroLocal = null, imgReview = null;
     if (hasImageGen() && spec.hero_prompt) {
-      const wrap = (p) => `${p}. Full-bleed vertical A4 poster background photograph, ${spec.mood} mood, accent color ${spec.accent}. A clear recognizable subject or scene with depth — never an empty texture or plain particle background. Cinematic lighting, rich color, keep the upper third relatively calm for a headline overlay. No text or letters, no people, no smoke or vapor, no product packaging or branded labels.`;
+      // 업종 무관 소재는 코드에서도 막는다 (아이스크림 POP 사고 재발 방지)
+      const BAN = ["ice cream","icecream","gelato","dessert","cake","coffee","latte","fruit","food","drink","beverage","cocktail","flower","bouquet","animal","cat","dog","bird","person","people","hand","model","portrait","smoke","vapor","vape device","package","cafe interior","restaurant","bakery"];
+      const FALLBACK = `A narrow Korean city shopping street at dusk, rows of small storefront neon signs glowing, wet asphalt reflecting the colored light, low-rise commercial buildings, no signage text legible.`;
+      const clean = (p) => { const low = String(p || "").toLowerCase(); const hit = BAN.filter(b => low.includes(b)); if (hit.length) { console.error("히어로 프롬프트 금지 소재 차단:", hit.join(","), "→ 매장 거리 장면으로 대체"); return { prompt: FALLBACK, blocked: hit }; } return { prompt: p, blocked: [] }; };
+      const wrap = (p) => `${clean(p).prompt}. Full-bleed vertical A4 poster background photograph of a real place, ${spec.mood} mood, accent color ${spec.accent}. This is the backdrop of a poster for a neighborhood vape shop in Korea — the scene must plausibly be a street, storefront, or shop interior. Cinematic lighting, rich color, keep the upper third relatively calm for a headline overlay. No text or letters, no people, no smoke or vapor, no product packaging, no food or drink.`;
       try {
         fs.mkdirSync(path.join(ROOT, "office/pop/img"), { recursive: true });
         const imgName = `${w}-${store}-${String(idx.length + 1).padStart(2, "0")}.png`;
@@ -128,7 +132,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
           try {
             imgReview = await askJSON({ system: systemPrompt(cfg, "panel_film"), model: cfg.staff.panel_film.model, max_tokens: 700, images: [out],
               dry: { verdict: "통과", why: "DRY", better_prompt: "" },
-              user: `방금 생성된 POP 히어로 이미지입니다(포스터 전체 배경으로 사용). 평가 기준: ① 3m 밖에서 시선을 잡는 분명한 피사체·장면이 있는가(거의 빈 배경이면 무조건 재생성) ② ${spec.mood} 무드와 포인트색 ${spec.accent}에 맞는가 ③ 지금 계절(${kmon}월·${season})에 맞는가 — 계절이 어긋나면(예: 여름에 눈꽃) 재생성 ④ 사람·연기·제품·글자가 없는가.\nJSON: {"verdict":"통과|재생성","why":"한 줄 근거","better_prompt":"재생성이면 문제를 고친 영문 프롬프트 2~3문장, 통과면 빈칸"}` });
+              user: `방금 생성된 POP 히어로 이미지입니다(포스터 전체 배경으로 사용). 브랜드 가이드 6-1의 순서대로 보세요.\n① **업종 적합성 — 이 사진이 전자담배 매장 포스터의 배경으로 납득되는가?** 음식·디저트·동물·꽃·사람·다른 업종 실내가 보이면 다른 항목은 볼 것도 없이 재생성입니다. 거리·상가·간판·유리·매장 안 사물이어야 합니다.\n② ${spec.mood} 무드와 포인트색 ${spec.accent}에 맞는가\n③ 지금 계절(${kmon}월·${season})에 맞는가\n④ 3m 밖에서 시선을 잡는 분명한 장면이 있는가(거의 빈 배경이면 재생성)\nJSON: {"verdict":"통과|재생성","why":"한 줄 근거","better_prompt":"재생성이면 문제를 고친 영문 프롬프트 2~3문장 — 반드시 거리·상가·매장 장면으로. 통과면 빈칸"}` });
             if (imgReview?.verdict === "재생성" && imgReview.better_prompt) {
               const ok2 = await genImage(wrap(imgReview.better_prompt), out);
               if (ok2) ok = ok2;
@@ -152,7 +156,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
         shotLocal = `pop/shot/${shotName}`;
         selfCheck = await askJSON({ system: dsys, model: cfg.staff.pop_designer.model, max_tokens: 900, images: [shotPath],
           dry: { verdict: "통과", why: "DRY", fixes: {} },
-          user: `방금 출고 직전인 ${store}점 POP '완성본 화면'입니다(당신이 만든 것). 실물 포스터를 3m 밖에서 본다고 생각하고: ① 글자가 배경에 묻히지 않는가 ② 헤드라인이 한눈에 읽히는가 ③ 레이아웃 깨짐·어색한 여백은 없는가 ④ 전체 인상이 브랜드 가이드 수준인가. JSON {"verdict":"통과|수정","why":"한 줄","fixes":{"바꿀 필드":"값"}} — fixes는 스펙 필드만(headline 배열·accent·mood·sub·kr·zh·tag). 배경 이미지는 이 단계에서 못 바꾼다(글·색만).` });
+          user: `방금 출고 직전인 ${store}점 POP '완성본 화면'입니다(당신이 만든 것). 실물 포스터를 매장 문 앞에 붙인다고 생각하고: ① **배경 사진이 전자담배 매장 포스터로 납득되는가(업종 무관 소재면 여기서 탈락)** ② 글자가 배경에 묻히지 않는가 ③ 헤드라인이 한눈에 읽히는가 ④ 레이아웃 깨짐·어색한 여백은 없는가 ⑤ 전체 인상이 실물 광고 포스터 수준인가. JSON {"verdict":"통과|수정","why":"한 줄","fixes":{"바꿀 필드":"값"}} — fixes는 스펙 필드만(headline 배열·accent·mood·sub·kr·zh·tag). 배경 이미지는 이 단계에서 못 바꾼다(글·색만).` });
         if (selfCheck?.verdict === "수정" && selfCheck.fixes && typeof selfCheck.fixes === "object") {
           const keepHero2 = spec.hero_prompt;
           spec = { ...spec, ...selfCheck.fixes };
