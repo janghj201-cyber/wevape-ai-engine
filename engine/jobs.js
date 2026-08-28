@@ -121,21 +121,30 @@ ${j.to_editor || ""}`;
 }
 
 // ── 편집장: 기획 회의 (병렬 의견 → 취합) + 회의록
-export async function editor_meeting(cfg) {
+// topic이 있으면 대표 지시에 따른 「안건 회의」 — 주차 중복 가드를 건너뛰고 그 안건으로 연다.
+// (2026-08-28: 대표가 "회의하여 보고"라 지시해도 주간 회의록이 이미 있으면 회의가 안 열리던 문제)
+export async function editor_meeting(cfg, topic = "") {
   const { items, w } = await ctx();
-  if (byWeek(items, w).some(i => i.title.startsWith("기획 회의록"))) return `이미 ${w} 회의록 있음`;
+  const T = String(topic || "").trim();
+  if (!T && byWeek(items, w).some(i => i.title.startsWith("기획 회의록"))) return `이미 ${w} 회의록 있음`;
+  if (T && items.some(i => i.type === "회의록" && (i.basis || "").includes(T.slice(0, 40)))) return "같은 안건 회의록 이미 있음";
   const brief = latest(items, i => i.type === "이슈 브리핑"), trend = latest(items, i => i.type === "트렌드 보고");
   const briefT = brief ? await N.readPageText(brief.id) : "(없음)", trendT = trend ? await N.readPageText(trend.id) : "(없음)";
   const lastPlan = latest(items, i => i.type === "기획안");
   const context = `주차 ${w}. 이슈 브리핑:\n${briefT.slice(0, 2500)}\n\n트렌드 보고:\n${trendT.slice(0, 2500)}\n\n지난 기획안: ${lastPlan ? `${lastPlan.title} [${lastPlan.status}] 관리자 메모: ${lastPlan.memo || "없음"}` : "없음"}\n최근 결과물:\n${summarize(items)}\n지점: ${cfg.stores.join("·")}`;
-  const roles = [
+  const roles = T ? [
+    ["regulation_reviewer", `안건: ${T}\n규제 검수관으로서 이 안건에 대해: 지금 기준서로 허용되는 것과 안 되는 것의 경계를 구체적으로. 회색지대는 회색지대라고. 400자.`],
+    ["pop_designer", `안건: ${T}\nPOP 디자이너로서: 지금 무엇을 어떤 목적으로 만들고 있는지 솔직히, 무엇이 막혀 있는지, 무엇이 있으면 풀리는지. 400자.`],
+    ["quality_editor", `안건: ${T}\n품질 편집자로서: 지금 결과물이 관리자 눈에 몇 점인지와 그 이유, 점수를 올리려면 무엇을 먼저 바꿔야 하는지. 400자.`],
+    ["panel_film", `안건: ${T}\n영화 보는 사람으로서: 시각적으로 '독보이게' 만든다는 것이 실제로 무엇을 바꾸는 일인지 구체적 방법 3개. 400자.`],
+  ].filter(([id]) => cfg.staff[id]) : [
     ["regulation_watcher", "이번 주 블로그에서 반드시 피할 표현·주제 3개(이유), 권장 준법 문장 1개, 지시문 규칙 1개. 300자."],
     ["trend_researcher", "이번 주 블로그 소재·형식 3개(어느 지점), 지역 행사와 잘 붙는 지점 3개, 사진 형식 1개. 350자."],
     ["blog_writer", `9지점(${cfg.stores.join("·")}) 각 주제·각도·유형(리뷰형/후기형) 1안을 표로. 지난주와 다른 각도. 지시문에 넣을 규칙 1개.`],
     ["regulation_reviewer", "지난주 반려·수정 사유 중 이번 주 지시문에 넣을 규칙 3개, 자동 반려 단어, 작가 주의 1개. 300자."],
   ];
   // 1라운드 — 각자 의견
-  const opinions = await Promise.all(roles.map(async ([id, task]) => [id, await ask({ system: systemPrompt(cfg, id, await M.inject(cfg, id)), model: cfg.staff[id].model, user: `기획 회의 1라운드입니다. 의견을 내세요.\n${context}\n\n요청: ${task}` })]));
+  const opinions = await Promise.all(roles.map(async ([id, task]) => [id, await ask({ system: systemPrompt(cfg, id, await M.inject(cfg, id)), model: cfg.staff[id].model, user: `${T ? `대표 지시로 소집된 안건 회의입니다. 안건: ${T}` : "기획 회의"} 1라운드입니다. 의견을 내세요.\n${context}\n\n요청: ${task}` })]));
   const NM = (id) => cfg.staff[id]?.display || ({ regulation_watcher: "규제 감시자", trend_researcher: "쇼츠 트렌드 리서처", blog_writer: "블로그 작가", regulation_reviewer: "규제 검수관", quality_editor: "품질 편집자" })[id] || id;
   const round1 = opinions.map(([id, t]) => `### ${NM(id)}\n${t}`).join("\n\n");
 
@@ -158,7 +167,7 @@ export async function editor_meeting(cfg) {
 
   const opText = `# 1라운드 — 각자 의견\n\n${round1}\n\n# 2라운드 — 반박과 동의\n\n${round2}`;
   const minutes = await ask({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor")), model: cfg.staff.editor.model, max_tokens: 6000,
-    user: `월요일 기획 회의를 2라운드로 진행했습니다. 당신은 의장입니다.\n${context}\n\n${opText}\n\n「기획 회의록 ${w}」를 마크다운으로 쓰세요:\n## 참석\n## 1라운드 요지 (각 1~2줄)\n## 충돌한 지점 — ${conflicts.length}건\n각 충돌마다: 누가 누구에게 무엇을 반대했나 / **당신의 판정과 이유**. 판정 기준은 「규제 > 브랜드 > 근거 있는 의견 > 취향」이며, 어느 기준으로 갈랐는지 반드시 명시하세요. 양쪽 다 맞다는 식으로 얼버무리지 마세요 — 한쪽을 고르고 이유를 대세요.\n## 결정 사항 (이번 주 실행할 것)\n## 보류 — 대표 판단이 필요한 것 (없으면 '없음')\n\n관리자의 지난 반려 사유는 최우선 반영합니다.` });
+    user: `${T ? `대표 지시로 소집된 안건 회의입니다. 안건: ${T}` : "월요일 기획 회의"}를 2라운드로 진행했습니다. 당신은 의장입니다.\n${context}\n\n${opText}\n\n「${T ? "안건 회의록" : "기획 회의록"} ${w}」를 마크다운으로 쓰세요:\n## 참석\n## 1라운드 요지 (각 1~2줄)\n## 충돌한 지점 — ${conflicts.length}건\n각 충돌마다: 누가 누구에게 무엇을 반대했나 / **당신의 판정과 이유**. 판정 기준은 「규제 > 브랜드 > 근거 있는 의견 > 취향」이며, 어느 기준으로 갈랐는지 반드시 명시하세요. 양쪽 다 맞다는 식으로 얼버무리지 마세요 — 한쪽을 고르고 이유를 대세요.\n## 결정 사항 (이번 주 실행할 것)\n## 보류 — 대표 판단이 필요한 것 (없으면 '없음')\n\n관리자의 지난 반려 사유는 최우선 반영합니다.` });
 
   // 사무실 화면의 회의록 탭에서 대화로 보이도록 저장
   try {
@@ -172,8 +181,8 @@ export async function editor_meeting(cfg) {
     fs.writeFileSync(talkPath, JSON.stringify(talk, null, 1));
   } catch (e) { console.error("회의록 화면 저장 실패:", e.message.slice(0, 80)); }
 
-  const p = await N.createContent({ title: `기획 회의록 ${w} (월 09:00 자동 회의)`, status: "승인", line: "보고", type: "보고서", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `2라운드 토론 · 참석 ${roles.length}명 · 충돌 ${conflicts.length}건 → 편집장 판정`, body: minutes });
-  return `회의록 ${w} 생성 (충돌 ${conflicts.length}건 판정) ${p.url}`;
+  const p = await N.createContent({ title: T ? `안건 회의록 ${w} — ${T.slice(0, 30)}` : `기획 회의록 ${w} (월 09:00 자동 회의)`, status: T ? "승인 대기" : "승인", line: "보고", type: T ? "회의록" : "보고서", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `${T ? `대표 지시 안건: ${T.slice(0, 120)} · ` : ""}2라운드 토론 · 참석 ${roles.length}명 · 충돌 ${conflicts.length}건 → 편집장 판정`, body: minutes });
+  return `${T ? "안건" : "기획"} 회의록 ${w} 생성 (참석 ${roles.length}명 · 충돌 ${conflicts.length}건 판정) ${p.url}`;
 }
 
 // ── 편집장: 주간 기획안 (회의록 기반)
@@ -392,7 +401,7 @@ ${summarize(items, 12)}`;
   const out = [`지시 접수 + 회신 → ${rec.url}`, `유형: ${kind} · 해석: ${plan.understanding || "-"}`];
   const ran = [];
   for (const t of (plan.tasks || []).filter(t => ALLOWED.includes(t)).slice(0, 3)) {
-    try { const r = await _R[t](cfg); ran.push(`${t}: ${String(r).slice(0, 200)}`); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); }
+    try { const r = await _R[t](cfg, t === "editor:meeting" ? memo : undefined); ran.push(`${t}: ${String(r).slice(0, 200)}`); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); }
     catch (e) { ran.push(`${t} 실패: ${e.message.slice(0, 80)}`); out.push(`▶ ${t} 실패: ${e.message.slice(0, 120)}`); }
   }
   // 실행 결과까지 회신에 이어 붙인다 — 대표는 한 페이지에서 답과 결과를 함께 본다
