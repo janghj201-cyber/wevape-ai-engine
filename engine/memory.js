@@ -12,7 +12,7 @@ const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 
 const DRY = process.env.DRY_RUN === "1";
 const dbId = (cfg) => process.env.NOTION_MEMORY_DB || cfg.memory_db;
-const NAME = (cfg, id) => cfg.staff[id]?.display || ({ editor: "주간 마케팅 편집장", blog_writer: "블로그 작가", regulation_watcher: "규제 감시자", regulation_reviewer: "규제 검수관", trend_researcher: "쇼츠 트렌드 리서처", upload_recorder: "업로드 기록원", pop_designer: "POP 디자이너", industry_reader: "업계 독서가", panel_poem: "시 읽는 사람", panel_film: "영화 보는 사람", panel_novel: "소설 읽는 사람" })[id] || id;
+const NAME = (cfg, id) => cfg.staff[id]?.display || ({ editor: "주간 마케팅 편집장", blog_writer: "블로그 작가", regulation_watcher: "규제 감시자", regulation_reviewer: "규제 검수관", trend_researcher: "쇼츠 트렌드 리서처", upload_recorder: "업로드 기록원", pop_designer: "POP 디자이너", industry_reader: "업계 독서가", panel_poem: "시 읽는 사람", panel_film: "영화 보는 사람", panel_novel: "소설 읽는 사람", quality_editor: "품질 편집자", risk_watch: "리스크 관리자" })[id] || id;
 const plain = (p) => (p?.rich_text || p?.title || []).map(x => x.plain_text).join("");
 const rich = (t) => [{ type: "text", text: { content: String(t ?? "").slice(0, 1900) } }];
 
@@ -29,7 +29,8 @@ export async function queryMemory(cfg, filter, limit = 100) {
   do {
     const body = { page_size: 100, sorts: [{ timestamp: "created_time", direction: "descending" }] };
     if (filter) body.filter = filter; if (cursor) body.start_cursor = cursor;
-    const r = await N.req("POST", `/databases/${dbId(cfg)}/query`, body);
+    let r; try { r = await N.req("POST", `/databases/${dbId(cfg)}/query`, body); }
+    catch (e) { console.error("기억 조회 실패(빈 기억으로 진행):", String(e.message).slice(0, 120)); return out.slice(0, limit); }
     out.push(...r.results.map(toCard)); cursor = r.has_more && out.length < limit ? r.next_cursor : null;
   } while (cursor);
   return out.slice(0, limit);
