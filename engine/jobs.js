@@ -370,6 +370,19 @@ export async function events_poll(cfg) {
   return out.join("\n");
 }
 
+// 직원이 답을 못 쓴 이유를 대표가 읽을 수 있는 말로 바꾼다. "회신 생성 실패" 한 줄만 남기면 대표는 원인을 알 수 없다.
+function failNotice(err) {
+  const e = String(err || "");
+  if (/credit balance|insufficient_quota|billing/i.test(e))
+    return "> ⚠️ **회신을 쓰지 못했습니다 — 직원들이 일할 수 없는 상태입니다.**\n>\n> 원인: **Anthropic API 크레딧 잔액 소진**. 조직의 모든 직원(편집장·작가·검수관·디자이너)은 이 API로 생각합니다. 잔액이 0이면 아무도 한 글자도 쓸 수 없습니다.\n>\n> 대표님이 하실 일: console.anthropic.com → Billing에서 크레딧 충전. 충전 후 이 지시를 다시 보내주시면 그대로 처리됩니다.\n>\n> (이 지시 내용은 위에 그대로 보관돼 있습니다. 사라지지 않습니다.)";
+  if (/rate_limit|429/i.test(e))
+    return "> ⚠️ **회신을 쓰지 못했습니다.** 원인: API 호출 한도 초과(일시적). 몇 분 뒤 같은 지시를 다시 보내주십시오.";
+  if (/overloaded|529|503|timeout|ETIMEDOUT|ECONNRESET/i.test(e))
+    return "> ⚠️ **회신을 쓰지 못했습니다.** 원인: 모델 서버 일시 장애. 잠시 뒤 같은 지시를 다시 보내주십시오.";
+  if (!e) return "> ⚠️ **회신을 쓰지 못했습니다.** 원인 불명 — 실행 로그 확인이 필요합니다.";
+  return `> ⚠️ **회신을 쓰지 못했습니다.**\n>\n> 원인: \`${e.slice(0, 300)}\``;
+}
+
 // ── 대표 지시: 대표실 명령창 → 편집장이 접수·해석 → 필요한 직원을 즉시 출근시켜 실행 → **반드시 회신을 남긴다**
 export async function ceo_instruct(cfg) {
   const memo = (process.env.INPUT_MEMO || "").trim();
@@ -389,33 +402,36 @@ ${summarize(items, 12)}`;
 
   // 긴 마크다운을 JSON 문자열 안에 넣게 하면 자주 깨진다 → 라우팅(JSON, 짧게)과 회신(평문 마크다운)을 나눈다
   const sysE = systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 8 }));
-  let plan = { kind: "지시", understanding: memo.slice(0, 80), tasks: [], store: "", note_to_staff: "" };
+  let plan = { kind: "지시", understanding: "", tasks: [], store: "", note_to_staff: "" };
+  let routeErr = "";
   try {
     plan = await askJSON({ system: sysE, model: cfg.staff.editor.model, max_tokens: 900,
       dry: { kind: "질문", understanding: "DRY", tasks: [], store: "", note_to_staff: "" },
       user: `대표가 명령창으로 지시했습니다:\n"""${memo}"""\n\n# 지금 조직 상태\n${state}\n\n실행 가능한 작업: ${ALLOWED.join(", ")}\n지점: ${cfg.stores.join(", ")}\n\n짧은 JSON만:\n{"kind":"질문|지시|방침","understanding":"지시 요해 1줄","tasks":["즉시 실행할 작업 0~3개, 위 목록 안에서만"],"store":"특정 지점 대상이면 지점명 하나, 아니면 빈칸","note_to_staff":"담당 직원들에게 전달할 지시 요지 1~2문장"}\n\n판단: POP을 다시/새로 만들라면 pop_designer:make(+store). 글이면 blog_writer:write. 회의를 열라면 editor:meeting. 조사 지시면 해당 조사. 질문이면 tasks는 비웁니다. 여기서는 긴 설명을 쓰지 마세요.` });
-  } catch (e) { console.error("지시 라우팅 실패(기본값으로 진행):", e.message.slice(0, 100)); }
+  } catch (e) { console.error("지시 라우팅 실패(기본값으로 진행):", e.message.slice(0, 200)); routeErr = e.message || String(e); }
 
-  let answer = "";
+  let answer = "", answerErr = "";
   try {
     answer = await ask({ system: sysE, model: cfg.staff.editor.model, max_tokens: 5000,
       user: `대표가 명령창으로 지시했습니다:\n"""${memo}"""\n\n당신은 편집장입니다. 대표는 이 창에 쓴 것에 대해 **반드시 답을 받아야 합니다.** 접수만 하고 끝내면 안 됩니다.\n\n# 지금 조직 상태\n${state}\n\n대표에게 드리는 회신을 마크다운으로 쓰세요. 질문이면 **지금 아는 사실로 정면으로 답하고**(모르면 모른다고), 지시면 무엇을 어떻게 하겠다고, 방침이면 어디에 어떻게 반영하겠다고 씁니다. 두루뭉술한 말 금지 — 숫자와 구체적 사실로. 800~2000자. JSON이나 코드펜스로 감싸지 말고 마크다운 본문만 출력하세요.` });
-  } catch (e) { console.error("회신 생성 실패:", e.message.slice(0, 100)); }
+  } catch (e) { console.error("회신 생성 실패:", e.message.slice(0, 200)); answerErr = e.message || String(e); }
 
   const kind = plan.kind || "지시";
-  const body = `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)} · 유형: ${kind}\n\n---\n\n# 편집장 회신\n\n**요해**: ${plan.understanding || ""}\n\n${answer || "(회신 생성 실패 — 관리자 확인 필요)"}\n\n**직원 전달**: ${plan.note_to_staff || "-"}`;
-  const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 34)}${memo.length > 34 ? "…" : ""}`, status: "승인 대기", line: "기획", type: "대표 지시", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `대표실 명령창 · ${kind} · 편집장 회신 포함`, review: `편집장 회신: ${String(plan.understanding || "").slice(0, 200)}`, body });
+  const body = `# 대표 지시\n\n${memo}\n\n- 접수: ${kstNow().slice(0, 16)} · 유형: ${kind}\n\n---\n\n# 편집장 회신\n\n**요해**: ${plan.understanding || "(해석 실패 — 아래 사유 참조)"}\n\n${answer || failNotice(answerErr || routeErr)}\n\n**직원 전달**: ${plan.note_to_staff || "-"}`;
+  const rec = await N.createContent({ title: `대표 지시 — ${memo.slice(0, 34)}${memo.length > 34 ? "…" : ""}`, status: "승인 대기", line: "기획", type: "대표 지시", team: "편집장", author: "주간 마케팅 편집장", week: w, basis: `대표실 명령창 · ${kind} · ${answer ? "편집장 회신 포함" : "⚠️ 회신 실패"}`, review: answer ? `편집장 회신: ${String(plan.understanding || "").slice(0, 200)}` : `⚠️ 회신 실패 — ${String(answerErr || routeErr).slice(0, 160)}`, body });
 
   if (plan.store && cfg.stores.includes(plan.store)) process.env.POP_FORCE_STORE = plan.store;
   try { await M.note(cfg, "editor", "ceo:instruct", `대표 지시 접수·회신: ${memo.slice(0, 120)} / 회신: ${String(answer).slice(0, 200)}`); } catch (e) { console.error("지시 노트 실패:", e.message); }
 
-  const out = [`지시 접수 + 회신 → ${rec.url}`, `유형: ${kind} · 해석: ${plan.understanding || "-"}`];
+  const out = [`지시 접수 ${answer ? "+ 회신" : "· ⚠️ 회신 실패"} → ${rec.url}`, `유형: ${kind} · 해석: ${plan.understanding || "-"}`];
+  if (!answer) { try { await N.updateContent(rec.id, { memo: `[회신 실패] ${String(answerErr || routeErr).slice(0, 300)}` }); } catch {} }
   const ran = [];
   for (const t of (plan.tasks || []).filter(t => ALLOWED.includes(t)).slice(0, 3)) {
     try { const r = await _R[t](cfg, t === "editor:meeting" ? memo : undefined); ran.push(`${t}: ${String(r).slice(0, 200)}`); out.push(`▶ ${t}\n${String(r).slice(0, 300)}`); }
     catch (e) { ran.push(`${t} 실패: ${e.message.slice(0, 80)}`); out.push(`▶ ${t} 실패: ${e.message.slice(0, 120)}`); }
   }
   // 실행 결과까지 회신에 이어 붙인다 — 대표는 한 페이지에서 답과 결과를 함께 본다
+  if (!answer) { console.error("대표 지시에 회신하지 못했습니다:", String(answerErr || routeErr).slice(0, 300)); }
   if (ran.length) { try { await N.req("PATCH", `/blocks/${rec.id}/children`, { children: N.mdToBlocks(`\n---\n\n## 즉시 실행 결과\n${ran.map(r => `- ${r}`).join("\n")}\n\n(${kstNow().slice(0, 16)})`, 90) }); } catch (e) { console.error("실행결과 append 실패:", e.message.slice(0, 60)); } }
   return out.join("\n");
 }
