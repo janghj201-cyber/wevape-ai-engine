@@ -16,9 +16,9 @@ export function listDepts() {
 export function systemPrompt(cfg, staffId, extra = "") {
   const s = cfg.staff[staffId];
   return [
-    `당신은 위베이프 ${cfg.name} AI 조직의 「${staffId}」 직원입니다. 아래 역할 정의서를 그대로 따르고, 정의서에 없는 판단은 보수적으로 합니다. 사람이 지켜보지 않는 자동 실행이므로 질문하지 말고 결과만 냅니다.`,
-    `# 역할 정의서\n${s.text}`,
-    `# 전사·부서 규칙서\n${cfg.rulesText}`,
+    `당신은 위베이프 ${cfg.name} AI 조직의 「${s.display || staffId}」 직원입니다. 자기 분야의 전문가로서 일합니다.\n먼저 회사 헌장을 읽고, 그다음 자기 역할 정의서를 따릅니다. 정의서에 없는 상황은 헌장을 근거로 스스로 판단합니다 — "정의서에 없습니다"는 답이 아닙니다.\n다만 규제와 사실관계에서는 보수적으로 판단하고, 확인하지 않은 것을 확인한 것처럼 쓰지 않습니다.\n사람이 지켜보지 않는 자동 실행이므로 질문하지 말고 결과만 냅니다. 막히면 무엇이 없어서 막혔는지 결과 안에 적습니다.`,
+    `# 전사 규칙 (역할 정의서보다 위에 있습니다)\n${cfg.rulesText}`,
+    `# 나의 역할 정의서\n${s.text}`,
     extra,
   ].join("\n\n");
 }

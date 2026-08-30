@@ -61,7 +61,17 @@ export async function inject(cfg, staffId, ctx = {}) {
   const line = ctx.line, stores = ctx.stores || [], topic = (ctx.topic || "").toLowerCase();
   const score = (k) => (line && k.lines.includes(line) ? 3 : 0) + (k.lines.includes("공통") ? 1 : 0) + (stores.some(s => k.stores.includes(s)) ? 3 : 0) + (k.stores.includes("공통") ? 1 : 0)
     + (k.confidence === "높음" ? 2 : k.confidence === "보통" ? 1 : 0) + (topic && (k.title + k.summary).toLowerCase().split(/\s+/).some(w => w.length > 1 && topic.includes(w)) ? 2 : 0) + (k.category === "금지 사례" || k.category === "규제·정책" ? 1 : 0);
-  const picked = knowledge.map(k => [score(k), k]).sort((a, b) => b[0] - a[0]).slice(0, ctx.max || 15).map(x => x[1]);
+  const ranked = knowledge.map(k => [score(k), k]).sort((a, b) => b[0] - a[0]);
+  const picked = ranked.slice(0, ctx.max || 15).map(x => x[1]);
+  // 가장 관련 높은 3장은 본문까지 읽는다 — 요약 한 줄로는 배운 것이 전달되지 않는다 (2026-08-30)
+  let deep = "";
+  try {
+    const top = picked.slice(0, ctx.deep ?? 3);
+    const texts = await Promise.all(top.map(async k => { try { return [k, (await N.readPageText(k.id)).slice(0, 1800)]; } catch { return [k, ""]; } }));
+    const body = texts.filter(([, t]) => t.trim().length > 60);
+    if (body.length) deep = `\n\n## 그중 가장 가까운 ${body.length}장은 원문 그대로 (요약이 아니라 실제로 적어둔 것)\n` +
+      body.map(([k, t]) => `### ${k.title}\n${t}`).join("\n\n");
+  } catch (e) { console.error("카드 본문 주입 생략:", e.message.slice(0, 60)); }
   let materials = "";
   try { if (cfg.materials_page) { const t = await N.readPageText(cfg.materials_page); if (t.trim().length > 40) materials = t.slice(0, 1500); } } catch {}
   const fmt = (arr, f) => arr.length ? arr.map(f).join("\n") : "(없음)";
@@ -70,8 +80,8 @@ export async function inject(cfg, staffId, ctx = {}) {
     `## 나의 이번 주 목표·계획 (스스로 세운 것 — 오늘 근무가 이 목표에 기여하는지 확인)\n${fmt(goals, g => `- ${g.title} — ${g.summary}`)}`,
     `## 나의 최근 업무 노트\n${fmt(notes, n => `- [${n.created.slice(0, 10)}] ${n.title} — ${n.summary}`)}`,
     `## 나에게 온 교훈 (관리자 반려·메모에서 나온 것 — 최우선 반영)\n${fmt(lessons, l => `- ${l.title} — ${l.summary}`)}`,
-    `## 지식 창고에서 고른 카드 (업계 독서가) ${picked.length}장\n${fmt(picked, k => `- (${k.category}${k.confidence ? "·" + k.confidence : ""}) ${k.title} — ${k.summary}${k.source ? ` [출처: ${k.source}]` : ""}`)}`,
-    `규칙: 교훈은 규칙보다 우선한다. 지식 카드는 참고이며 기준서 금지 표현을 정당화하지 못한다. 카드 내용을 그대로 베끼지 말고 우리 매장 문장으로 바꿔 쓴다.`,
+    `## 지식 창고에서 고른 카드 (업계 독서가) ${picked.length}장\n${fmt(picked, k => `- (${k.category}${k.confidence ? "·" + k.confidence : ""}) ${k.title} — ${k.summary}${k.source ? ` [출처: ${k.source}]` : ""}`)}${deep}`,
+    `규칙: 관리자(대표) 교훈은 규칙보다 우선한다. 같은 지적을 두 번 받으면 조직의 실패다. 지식 카드는 참고이며 기준서 금지 표현을 정당화하지 못한다. 카드 내용을 그대로 베끼지 말고 우리 매장 문장으로 바꿔 쓴다.`,
   ].join("\n\n");
 }
 
@@ -91,12 +101,12 @@ export async function detectLessons(cfg) {
   if (!dbId(cfg) || DRY) return "기억 DB 미설정/DRY";
   const items = await N.queryContent(undefined, [{ timestamp: "created_time", direction: "ascending" }]);
   const existing = new Set((await queryMemory(cfg, { property: "유형", select: { equals: "교훈 카드" } }, 300)).map(l => l.related).filter(Boolean));
-  const targets = items.filter(i => (i.status === "반려" || (i.memo && i.memo.trim())) && !existing.has(i.url)).slice(-8);
+  const targets = items.filter(i => (i.status === "반려" || (i.memo && i.memo.trim())) && !existing.has(i.url)).slice(-12);
   const out = [];
   for (const it of targets) {
     const author = it.author || "공용";
     const j = await askJSON({ system: "당신은 위베이프 AI 조직의 코치입니다. 관리자(장현진)의 반려·메모를 해당 직원이 다음부터 지킬 수 있는 교훈 한 장으로 바꿉니다. 짧고 구체적으로.", model: "claude-sonnet-4-5", max_tokens: 700, dry: {},
-      user: `항목: ${it.title}\n작성자: ${author} · 라인 ${it.line} · 유형 ${it.type} · 상태 ${it.status}\n검수 결과: ${it.review || "-"}\n관리자 메모: ${it.memo || "-"}\n\nJSON: {"title":"교훈 한 줄(25자)","summary":"무엇이 문제였고 다음부터 어떻게 할지 2~3문장(200자)","for_reviewer":"검수관이 앞으로 걸러야 할 기준 1문장(없으면 빈칸)","tags":["해당 태그"]}` });
+      user: `항목: ${it.title}\n작성자: ${author} · 라인 ${it.line} · 유형 ${it.type} · 상태 ${it.status}\n검수 결과: ${it.review || "-"}\n관리자 메모: ${it.memo || "-"}\n\nJSON: {"title":"교훈 한 줄(25자). 관리자가 점수를 매겼으면 제목 앞에 「N점」을 붙인다","summary":"① 관리자가 실제로 쓴 문장을 큰따옴표로 그대로 인용 ② 그 지적이 이 결과물의 어느 대목을 가리키는지 ③ 다음부터 구체적으로 어떻게 할지. 3~4문장(300자). 두루뭉술한 다짐 금지 — '더 잘하겠다' 같은 문장은 쓰지 않는다","for_reviewer":"검수관이 앞으로 걸러야 할 기준 1문장(없으면 빈칸)","tags":["해당 태그"]}\n\n관리자 메모에 점수가 있으면 반드시 살립니다. 이 조직에서 관리자 점수는 유일한 합격선이고, 같은 지적을 두 번 받는 것은 실패로 기록됩니다.` });
     if (!j.title) continue;
     await createMemory(cfg, { title: j.title, type: "교훈 카드", staff: author, category: "관리자 교훈", lines: [it.line || "공통"], stores: it.stores?.length ? it.stores : ["공통"], tags: (j.tags || []).slice(0, 4), confidence: "높음", related: it.url, week: it.week, summary: j.summary, body: `# ${j.title}\n\n${j.summary}\n\n- 원문: ${it.title} (${it.status})\n- 관리자 메모: ${it.memo || "-"}\n- 검수 결과: ${it.review || "-"}` });
     if (j.for_reviewer) await createMemory(cfg, { title: `검수 기준 추가: ${j.title}`, type: "교훈 카드", staff: "규제 검수관", category: "관리자 교훈", lines: [it.line || "공통"], confidence: "높음", related: it.url, week: it.week, summary: j.for_reviewer });
@@ -143,18 +153,61 @@ export async function industry_reader_read(cfg) {
   const [focusName, focus] = FOCUS[(day * 4 + slot) % FOCUS.length];
   const recent = DRY ? [] : await queryMemory(cfg, { property: "유형", select: { equals: "지식 카드" } }, 200);
   const known = recent.map(k => k.title).join(" / ").slice(0, 3000);
-  const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, "industry_reader", await inject(cfg, "industry_reader", { max: 5 })), tools: ["web_search"], model: cfg.staff.industry_reader.model, max_tokens: 5000,
+  const sysR = (await import("./org.js")).systemPrompt(cfg, "industry_reader", await inject(cfg, "industry_reader", { max: 5 }));
+  const 자료 = await gather(cfg, "industry_reader", sysR, `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 이번 근무 초점: 「${focusName}」 — ${focus}`);
+  const j = await askJSON({ system: sysR, model: cfg.staff.industry_reader.model, max_tokens: 5000,
     dry: { cards: [{ title: "DRY 카드", category: "고객 언어", summary: "테스트", lines: ["블로그"], stores: ["공통"], tags: ["검색어"], confidence: "보통", source: "https://example.com" }] },
-    user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 이번 근무 초점: 「${focusName}」 — ${focus}\n웹 검색으로 최근 자료를 최소 6개 이상 읽고, 읽은 것을 지식 카드 8~12장으로 쪼개세요. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","category":"고객 언어|글 구조·첫 문장|소재·상황|반응 사례|금지 사례|규제·정책","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"stores":["해당 지점 또는 공통"],"tags":["기기관리|찾아오는길|응대|직영신뢰|외국인|지역행사|사진|해시태그|검색어"],"confidence":"높음|보통|낮음","source":"URL"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴 정보는 카드로 만들지 않는다(금지 사례로만 기록). 카드는 사실과 관찰이지 우리 글 초안이 아니다. 매 근무 반드시 「글 구조·첫 문장」 분류 카드 2장 이상을 실제 문장 발췌(20~60자 인용)와 함께 만든다 — 작가가 딱딱함을 벗는 데 쓴다.` });
-  const cards = (j.cards || []).slice(0, 12); const out = [];
+    user: `방금 당신이 읽고 적어온 자료입니다.\n\n${String(자료).slice(0, 14000)}\n\n초점: 「${focusName}」 — ${focus}\n이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\n위 자료만 근거로 지식 카드 8~12장을 만드세요.\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","category":"고객 언어|글 구조·첫 문장|소재·상황|반응 사례|금지 사례|규제·정책","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 자료에 있던 문장·수치를 인용","lines":["블로그","POP","SNS","영상","공통"],"stores":["해당 지점 또는 공통"],"tags":["기기관리|찾아오는길|응대|직영신뢰|외국인|지역행사|사진|해시태그|검색어"],"confidence":"높음|보통|낮음","source":"위 자료의 주소를 그대로 복사"}]}\n\n**절대 규칙**: source는 위 자료에 실제로 적힌 주소만 씁니다. 자료에 없는 주소를 기억으로 지어내면 그 카드는 폐기되고 근무는 실패로 기록됩니다. 자료가 「검색 실패」뿐이면 cards를 빈 배열로 두세요 — 빈손이 거짓말보다 낫습니다.\n제품·맛·니코틴 정보는 카드로 만들지 않습니다(금지 사례로만). 매 근무 「글 구조·첫 문장」 카드 2장 이상을 실제 문장 발췌(20~60자 인용)와 함께.` });
+  const cards = (j.cards || []).slice(0, 12); const out = []; let dropped = 0;
   for (const c of cards) {
     if (!c.title || !c.source) continue;
+    if (!(await sourceAlive(c.source))) { dropped++; console.error(`출처 확인 실패로 카드 폐기: ${c.title} / ${c.source}`); continue; }
     const p = await createMemory(cfg, { title: c.title, type: "지식 카드", staff: "업계 독서가", category: c.category, lines: c.lines?.length ? c.lines : ["공통"], stores: c.stores?.length ? c.stores : ["공통"], tags: (c.tags || []).slice(0, 4), confidence: c.confidence || "보통", source: c.source, week: w, summary: c.summary || "", body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${c.source}\n- 초점: ${focusName}\n- 읽은 시각: ${kstNow().slice(0, 16)}` });
     out.push(`${c.title} → ${p.url || ""}`);
   }
-  return `독서 근무(${focusName}) 카드 ${out.length}장\n${out.join("\n")}`;
+  return `독서 근무(${focusName}) 카드 ${out.length}장${dropped ? ` (출처 확인 실패 ${dropped}장 폐기)` : ""}\n${out.join("\n")}`;
 }
 
+
+
+// ── 학습 2단계 — 2026-08-30 관리자 지적으로 신설
+// 문제: 한 번의 호출에서 "웹 검색해라 + JSON만 출력해라"를 동시에 시키면, JSON 요구가 검색을 눌러
+//       모델이 검색을 건너뛰고 아는 것으로 카드를 쓴다. 거기에 "출처 없는 카드 금지"까지 붙으면
+//       출처를 지어낸다. 실제로 존재하지 않는 도메인이 지식 카드 출처로 다수 저장돼 있었다.
+// 해결: ① 검색만 하는 호출(평문, JSON 요구 없음) → ② 그 결과 '자료'만 근거로 카드를 만드는 호출(도구 없음).
+//       2단계에는 도구를 주지 않으므로 1단계에서 안 읽은 것은 쓸 재료가 없다.
+async function gather(cfg, staffId, sys, brief) {
+  if (DRY) return "[DRY 자료]";
+  const raw = await ask({ system: sys, tools: ["web_search"], model: cfg.staff[staffId].model, max_tokens: 6000,
+    user: `${brief}
+
+지금은 **읽기만 하는 시간**입니다. 카드를 만들지 마세요. JSON도 쓰지 마세요.
+웹 검색을 실제로 6회 이상 수행하고, 읽은 자료를 아래 형식의 평문으로 그대로 옮기세요.
+
+[자료 N]
+- 제목:
+- 주소: (검색 결과에 뜬 실제 URL 그대로. 기억으로 URL을 만들어 쓰지 마세요)
+- 읽은 내용: 원문에 실제로 적혀 있던 사실·수치·문장을 3~6줄. 인용은 따옴표로.
+
+검색이 안 되거나 결과가 부실하면 "[검색 실패]"라고 그대로 쓰세요. 지어내지 마세요 — 빈손으로 돌아오는 편이 낫습니다.` });
+  return raw;
+}
+
+// 카드에 붙은 출처가 실제로 열리는지 확인한다. 안 열리면 그 카드는 버린다.
+const BAD_HOST = /hugedomains|afternic|sedo|dan\.com|godaddy.*(?:auction|broker)|buy.?this.?domain|parked/i;
+async function sourceAlive(url) {
+  if (!/^https?:\/\//i.test(String(url || ""))) return true;   // repo:·자료함 등 내부 출처는 통과
+  try {
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(url, { redirect: "follow", signal: ctrl.signal, headers: { "user-agent": "Mozilla/5.0 (wevape-ai-engine 출처검증)" } });
+    clearTimeout(t);
+    if (!r.ok) return false;
+    if (BAD_HOST.test(r.url)) return false;                       // 매물로 넘어간 도메인
+    const body = (await r.text()).slice(0, 4000);
+    if (BAD_HOST.test(body)) return false;
+    return true;
+  } catch { return false; }
+}
 
 // ── 관점 패널 자습: 각자 관점의 전문가로서 매일 읽고 카드로 남긴다 (관리자 지시: 시키지 않아도 스스로 공부)
 const PANEL_STUDY = {
@@ -220,13 +273,55 @@ export async function panel_study(cfg) {
       } catch (e) { console.error("panel_film 이미지 첨부 실패:", e.message); }
     }
     try {
-      const j = await askJSON({ system: (await import("./org.js")).systemPrompt(cfg, id, await inject(cfg, id, { max: 5 })), tools: ["web_search"], model: cfg.staff[id].model, max_tokens: 4500, images: imgs,
+      const sysP = (await import("./org.js")).systemPrompt(cfg, id, await inject(cfg, id, { max: 5 }));
+      const 자료 = await gather(cfg, id, sysP, `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 자습 시간입니다. 초점: ${focus}`);
+      const j = await askJSON({ system: sysP, model: cfg.staff[id].model, max_tokens: 4500, images: imgs,
         dry: { cards: [{ title: `DRY ${me}`, summary: "t", lines: ["공통"], tags: [], confidence: "보통", source: "https://example.com" }] },
-        user: `지금 ${kstNow().slice(0, 16)}, 주차 ${w}. 자습 시간입니다. 초점: ${focus}${imgNote}\n웹 검색으로 최근 자료 5개 이상 읽고 지식 카드 6~10장으로. 이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 예문·수치·색값이 있으면 인용","lines":["블로그","POP","SNS","영상","공통"],"tags":["해당 태그"],"confidence":"높음|보통|낮음","source":"URL 또는 repo:경로"}]}\n규칙: 출처 없는 카드 금지. 제품·맛·니코틴·연기·인물 사진 소재 금지. 카드는 관찰과 근거이지 우리 초안이 아니다.` });
+        user: `방금 당신이 읽고 적어온 자료입니다.\n\n${String(자료).slice(0, 12000)}\n\n초점: ${focus}${imgNote}\n이미 있는 카드 제목(중복 금지):\n${known || "(없음)"}\n\n위 자료와 첨부 이미지만 근거로 지식 카드 6~10장을 만드세요.\n\nJSON: {"cards":[{"title":"카드 한 줄(30자, 구체적)","summary":"다른 직원이 바로 쓸 수 있게 2~4문장(250자). 자료의 예문·수치·색값을 인용","lines":["블로그","POP","SNS","영상","공통"],"tags":["해당 태그"],"confidence":"높음|보통|낮음","source":"위 자료의 주소를 그대로 복사, 또는 첨부를 본 카드면 repo:경로·자료함·naver-image:질의"}]}\n\n**절대 규칙**: source는 위 자료에 실제로 적힌 주소이거나, 첨부 이미지를 직접 본 카드의 내부 출처만 씁니다. 기억으로 주소를 지어내면 그 카드는 폐기됩니다. 자료가 「검색 실패」뿐이고 첨부도 없으면 cards를 빈 배열로 두세요.\n제품·맛·니코틴·연기·인물 사진 소재 금지. 카드는 관찰과 근거이지 우리 초안이 아닙니다.` });
       let n = 0;
-      for (const c of (j.cards || []).slice(0, 10)) { if (!c.title || !c.source) continue; await createMemory(cfg, { title: c.title, type: "지식 카드", staff: me, category: cat, lines: c.lines?.length ? c.lines : ["공통"], tags: (c.tags || []).slice(0, 4), confidence: c.confidence || "보통", source: c.source, week: w, summary: c.summary || "", body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${c.source}\n- 자습 초점: ${cat}\n- ${kstNow().slice(0, 16)}` }); n++; }
-      out.push(`${me}: 카드 ${n}장`);
+      let dropped = 0;
+      for (const c of (j.cards || []).slice(0, 10)) { if (!c.title || !c.source) continue;
+        if (!(await sourceAlive(c.source))) { dropped++; console.error(`출처 확인 실패로 카드 폐기: ${c.title} / ${c.source}`); continue; }
+        await createMemory(cfg, { title: c.title, type: "지식 카드", staff: me, category: cat, lines: c.lines?.length ? c.lines : ["공통"], tags: (c.tags || []).slice(0, 4), confidence: c.confidence || "보통", source: c.source, week: w, summary: c.summary || "", body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${c.source}\n- 자습 초점: ${cat}\n- ${kstNow().slice(0, 16)}` }); n++; }
+      out.push(`${me}: 카드 ${n}장${dropped ? ` (출처 확인 실패 ${dropped}장 폐기)` : ""}`);
     } catch (e) { out.push(`${me}: 실패 ${e.message.slice(0, 80)}`); }
   }
   return `관점 패널 자습\n${out.join("\n")}`;
+}
+
+// ── 기억 감사 (memory:audit) — 2026-08-30 신설
+// 이미 쌓인 지식 카드의 출처를 실제로 열어보고, 안 열리는 카드는 상태를 「출처 불명」으로 내린다.
+// inject()는 상태=활성인 카드만 주입하므로, 내려간 카드는 그 즉시 직원들 눈에서 사라진다.
+// 지우지는 않는다 — 나중에 출처가 되살아나면 되돌릴 수 있어야 하고, 무엇이 왜 걸렸는지 대표가 봐야 한다.
+export async function memory_audit(cfg, maxCheck = 60) {
+  if (!dbId(cfg) || DRY) return "기억 DB 미설정";
+  const all = await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "상태", select: { equals: "활성" } }] }, 800);
+  const todo = all.filter(k => /^https?:\/\//i.test(k.source || "")).slice(0, maxCheck);
+  if (!todo.length) return "검증할 외부 출처 카드 없음";
+  const dead = [], seen = new Map();
+  for (const k of todo) {
+    const key = k.source.split("?")[0];
+    if (!seen.has(key)) seen.set(key, await sourceAlive(k.source));   // 같은 주소는 한 번만 확인
+    if (!seen.get(key)) dead.push(k);
+  }
+  for (const k of dead) {
+    try {
+      await N.req("PATCH", `/pages/${k.id}`, { properties: { "상태": { select: { name: "출처 불명" } } } });
+    } catch (e) { console.error("카드 상태 변경 실패:", k.title, e.message.slice(0, 60)); }
+  }
+  const byStaff = {};
+  for (const k of dead) byStaff[k.staff] = (byStaff[k.staff] || 0) + 1;
+  const line = Object.entries(byStaff).map(([s, n]) => `${s} ${n}장`).join(" · ") || "없음";
+  console.error(`기억 감사: ${todo.length}장 확인 · ${dead.length}장 출처 불명 (${line})`);
+  if (dead.length) {
+    const w = isoWeek(new Date(), cfg.week_offset || 0);
+    await N.createContent({
+      title: `기억 감사 ${kstNow().slice(0, 10)} — 출처 불명 ${dead.length}장`,
+      status: "승인 대기", line: "보고", type: "보고서", team: "편집장", author: "관리자", week: w,
+      basis: `지식 카드 ${todo.length}장 출처 확인 · ${kstNow()}`,
+      review: `출처 불명 ${dead.length}장 → 상태 내림 (${line})`,
+      body: `# 기억 감사\n\n확인한 카드 **${todo.length}장** 중 출처가 실제로 열리지 않는 카드 **${dead.length}장**을 찾아 상태를 「출처 불명」으로 내렸습니다. 이 카드들은 더 이상 직원들에게 주입되지 않습니다.\n\n직원별: ${line}\n\n## 내려간 카드\n${dead.map(k => `- (${k.staff}) ${k.title}\n  - 출처: ${k.source}`).join("\n")}\n\n---\n출처가 열리지 않는다는 것은 그 카드의 근거를 확인할 수 없다는 뜻입니다. 내용이 틀렸다고 단정하는 것은 아니지만, 확인되지 않은 것을 사실처럼 쓰지 않는 것이 이 조직의 원칙입니다.\n\n(${kstNow().slice(0, 16)})`,
+    });
+  }
+  return `기억 감사: ${todo.length}장 확인 · 출처 불명 ${dead.length}장 내림 (${line})`;
 }

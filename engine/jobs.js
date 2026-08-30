@@ -446,6 +446,6 @@ const _R = {
   "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup,
   "sns:publish": sns_publish, "sns:health": sns_health,
   "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,
-  "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "company:score": C.score_apply, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
+  "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "company:score": C.score_apply, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview, "memory:audit": M.memory_audit,
 };
 export const REGISTRY = Object.fromEntries(Object.entries(_R).map(([k, f]) => [k, (cfg, ...a) => { WEEK_OFFSET = cfg.week_offset || 0; return f(cfg, ...a); }]));
