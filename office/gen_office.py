@@ -227,8 +227,8 @@ a{color:inherit}
 const D = __DATA__;
 D.pops = D.pops || []; D.departments = D.departments || [{id:"marketing",name:"마케팅",icon:"📣",active:true}];
 const byId = Object.fromEntries(D.staff.map(s=>[s.id,s]));
-const teamRooms = ["트렌드조사","이슈조사","작성","검수","업로드"];
-const teamIcon = {"트렌드조사":"📱","이슈조사":"🚨","작성":"✍️","검수":"🛡️","업로드":"📤","편집장":"🧭","관점패널":"🎭"};
+const teamRooms = ["트렌드조사","이슈조사","작성","검수","업로드","관제"];
+const teamIcon = {"트렌드조사":"📱","이슈조사":"🚨","작성":"✍️","검수":"🛡️","업로드":"📤","관제":"🛰️","편집장":"🧭","관점패널":"🎭"};
 function fig(s, size=38){
   const c=s.color; return `<svg width="${size}" height="${size+8}" viewBox="0 0 38 46"><circle cx="19" cy="10" r="8" fill="#fde7c8" stroke="#3b3b3b" stroke-width="1.5"/><path d="M11 10 q8-9 16 0" fill="#3b3b3b"/><rect x="9" y="19" width="20" height="17" rx="5" fill="${c}"/><rect x="11" y="36" width="6" height="8" fill="#3b3b3b"/><rect x="21" y="36" width="6" height="8" fill="#3b3b3b"/><rect x="26" y="24" width="8" height="10" rx="1" fill="#f6d365" stroke="#b7791f"/></svg>`;
 }
