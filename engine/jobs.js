@@ -3,6 +3,7 @@ import { ask, askJSON } from "./claude.js";
 import * as N from "./notion.js";
 import { systemPrompt, isoWeek, kstNow } from "./org.js";
 import { pop_designer_make } from "./pop.js";
+import { sns_publish, sns_health } from "./sns.js";
 import * as M from "./memory.js";
 import * as C from "./company.js";
 
@@ -443,6 +444,7 @@ const _R = {
   "regulation_reviewer:review": regulation_reviewer_review, "quality_editor:review": quality_editor_review, "risk:scan": risk_scan, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
   "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup,
+  "sns:publish": sns_publish, "sns:health": sns_health,
   "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,
   "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "company:score": C.score_apply, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview,
 };
