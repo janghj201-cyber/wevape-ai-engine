@@ -5,8 +5,8 @@ import { queryMemory } from "./memory.js";
 import { currentScore } from "./company.js";
 import { kstNow, isoWeek, listDepts } from "./org.js";
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
-const COLORS = { "편집장": "#2f855a", "트렌드조사": "#d69e2e", "이슈조사": "#c53030", "작성": "#2b6cb0", "검수": "#dd6b20", "업로드": "#6b46c1", "관점패널": "#b83280" };
-const IDS = { "업계 독서가": "reader", "주간 마케팅 편집장": "editor", "쇼츠 트렌드 리서처": "trend", "규제 감시자": "reg", "블로그 작가": "writer", "규제 검수관": "reviewer", "업로드 기록원": "uploader", "POP 디자이너": "pop", "소설 읽는 사람": "novel", "영화 보는 사람": "film", "시 읽는 사람": "poem" };
+const COLORS = { "편집장": "#2f855a", "트렌드조사": "#d69e2e", "이슈조사": "#c53030", "작성": "#2b6cb0", "검수": "#dd6b20", "업로드": "#6b46c1", "관점패널": "#b83280", "관제": "#0f766e" };
+const IDS = { "업계 독서가": "reader", "주간 마케팅 편집장": "editor", "쇼츠 트렌드 리서처": "trend", "규제 감시자": "reg", "블로그 작가": "writer", "규제 검수관": "reviewer", "업로드 기록원": "uploader", "POP 디자이너": "pop", "소설 읽는 사람": "novel", "영화 보는 사람": "film", "시 읽는 사람": "poem", "품질 편집자": "quality", "리스크 관리자": "risk", "SNS 발행원": "snspub" };
 // 복도에 보일 부서 문 — 활성 부서는 org/ 폴더에서, 나머지는 예정 목록
 const PLANNED = [
   { id: "store_ops", name: "매장운영", icon: "🏪", desc: "지점 매출·재고 요약, 근무표, 응대 매뉴얼, 순회 체크리스트" },
