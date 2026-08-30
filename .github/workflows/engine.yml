@@ -46,6 +46,7 @@ jobs:
       NOTION_HQ_URL: ${{ secrets.NOTION_HQ_URL }}
       NOTION_MEMORY_DB: ${{ secrets.NOTION_MEMORY_DB }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      WEVAPE_SNS_CODE: ${{ secrets.WEVAPE_SNS_CODE }}
       INPUT_PAGE_ID: ${{ github.event.inputs.page_id }}
       INPUT_SCORE: ${{ github.event.inputs.score }}
       INPUT_DECISION: ${{ github.event.inputs.decision }}
