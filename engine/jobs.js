@@ -4,6 +4,7 @@ import * as N from "./notion.js";
 import { systemPrompt, isoWeek, kstNow } from "./org.js";
 import { pop_designer_make } from "./pop.js";
 import * as M from "./memory.js";
+import { sns_publish, sns_health } from "./sns.js";
 import * as C from "./company.js";
 
 let WEEK_OFFSET = 0; const week = () => isoWeek(new Date(), WEEK_OFFSET);
@@ -437,6 +438,7 @@ ${summarize(items, 12)}`;
 }
 
 const _R = {
+  "sns:publish": sns_publish, "sns:health": sns_health,
   "ceo:instruct": ceo_instruct,
   "regulation_watcher:brief": regulation_watcher_brief, "trend_researcher:report": trend_researcher_report,
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
