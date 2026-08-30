@@ -227,6 +227,9 @@ export async function sns_publish(cfg, maxPosts = 3) {
 export async function sns_health(cfg) {
   try {
     const h = await call("health", {});
+    // 발행 시스템이 health에 data를 안 실어 보내는 경우가 있다(2026-08-30 확인).
+    // 응답이 와 있다는 것 자체가 접속코드·연결 정상이라는 뜻이므로 여기서 죽지 않는다.
+    if (!h) return "SNS 발행 시스템 연결 정상 (health 응답에 상세 없음)";
     const issues = h.issues || [];
     if (!issues.length) return "SNS 발행 시스템 정상";
     const w = isoWeek(new Date(), cfg.week_offset || 0);
