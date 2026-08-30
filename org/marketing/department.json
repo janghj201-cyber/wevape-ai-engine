@@ -127,6 +127,12 @@
       "team": "관제",
       "display": "리스크 관리자",
       "model": "claude-haiku-4-5"
+    },
+    "sns_publisher": {
+      "file": "staff/sns_publisher.md",
+      "team": "업로드",
+      "display": "SNS 발행원",
+      "model": "claude-sonnet-4-5"
     }
   },
   "jobs": {
