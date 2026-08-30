@@ -252,7 +252,7 @@ export async function panel_study(cfg) {
           if (cfg.materials_page) {
             const urls = await N.pageImages(cfg.materials_page, 5);
             let mi = 0;
-            for (const u of urls) { try { const rr = await fetch(u); if (rr.ok) { const p2 = `/tmp/material-${mi}.png`; fs.writeFileSync(p2, Buffer.from(await rr.arrayBuffer())); imgs.unshift(p2); mi++; } } catch {} }
+            for (const u of urls) { try { imgs.unshift(await N.saveImage(u, `/tmp/material-${mi}`)); mi++; } catch (e) { console.error("자료 이미지 건너뜀:", e.message.slice(0, 60)); } }
             if (mi) imgNote += `\n최우선 첨부: 대표가 자료함에 직접 올린 이미지 ${mi}장 — 대표가 "이 정도 결"이라고 보여준 기준선이다. 가장 무겁게 관찰해 카드로 남긴다(source는 "자료함"). 관찰 항목: 무엇이 주인공이고 어느 크기인가 / 배경·조명·질감 / 글자와 그림의 관계 / 정보 밀도 / **우리 최근 결과물과의 격차가 정확히 무엇인가**. 단, 그 자료에 있는 맛 이름·당도·쿨링·타격감 수치·니코틴 농도·과일 이미지는 우리 POP에 쓸 수 없다(가향표시 금지). 가져올 것은 완성도의 수준이지 금지된 소재가 아니다 — 이 구분을 카드에 명시한다.`;
           }
         } catch (e) { console.error("자료함 이미지 생략:", e.message.slice(0, 80)); }

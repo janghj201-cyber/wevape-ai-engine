@@ -83,7 +83,7 @@ export async function pop_designer_make(cfg, maxPops = 2) {
       if (cfg.materials_page) {
         const urls = await N.pageImages(cfg.materials_page, 4);
         let mi = 0;
-        for (const u of urls) { try { const rr = await fetch(u); if (rr.ok) { const pth = `/tmp/pop-material-${mi}.png`; fs.writeFileSync(pth, Buffer.from(await rr.arrayBuffer())); matImgs.push(pth); mi++; } } catch {} }
+        for (const u of urls) { try { matImgs.push(await N.saveImage(u, `/tmp/pop-material-${mi}`)); mi++; } catch (e) { console.error("자료 이미지 건너뜀:", e.message.slice(0, 60)); } }
         if (mi) console.error(`대표 자료함 이미지 ${mi}장을 POP 디자이너에게 첨부`);
       }
     } catch (e) { console.error("자료함 이미지 첨부 생략:", e.message.slice(0, 80)); }

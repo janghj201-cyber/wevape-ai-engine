@@ -113,3 +113,22 @@ export async function pageImages(pageId, max = 5) {
   } while (cursor);
   return out.slice(0, max);
 }
+
+// 이미지를 내려받아 '실제 형식'에 맞는 확장자로 저장한다.
+// (2026-08-30: 자료함의 카카오톡 JPG를 .png로 저장해 Claude가 media_type 불일치로 400을 냈다)
+export async function saveImage(url, basePath) {
+  const fs = await import("node:fs");
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`이미지 내려받기 실패 ${r.status}`);
+  const buf = Buffer.from(await r.arrayBuffer());
+  const b = buf.subarray(0, 12);
+  let ext = "png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) ext = "jpg";
+  else if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) ext = "png";
+  else if (b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") ext = "webp";
+  else if (b.toString("ascii", 0, 3) === "GIF") ext = "gif";
+  else throw new Error("지원하지 않는 이미지 형식");
+  const p = `${basePath}.${ext}`;
+  fs.writeFileSync(p, buf);
+  return p;
+}

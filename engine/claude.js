@@ -4,12 +4,21 @@
 import fs from "node:fs";
 const DRY = process.env.DRY_RUN === "1";
 const MIME = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
+// 확장자를 믿지 않고 실제 바이트로 형식을 판별한다 (2026-08-30: .png로 저장된 JPG 때문에 API 400)
+function sniff(buf, file) {
+  const b = buf.subarray(0, 12);
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  if (b.toString("ascii", 0, 3) === "GIF") return "image/gif";
+  return MIME[String(file).split(".").pop().toLowerCase()] || "image/png";
+}
 
 export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [], max_tokens = 6000, images = [] }) {
   if (DRY) return `[DRY 응답] (${model}) ${user.slice(0, 80)}…`;
   const imgs = (images || []).filter(f => { try { return fs.statSync(f).size > 0; } catch { return false; } }).slice(0, 5);
   const content = imgs.length
-    ? [...imgs.map(f => ({ type: "image", source: { type: "base64", media_type: MIME[f.split(".").pop().toLowerCase()] || "image/png", data: fs.readFileSync(f).toString("base64") } })), { type: "text", text: user }]
+    ? [...imgs.map(f => { const buf = fs.readFileSync(f); return { type: "image", source: { type: "base64", media_type: sniff(buf, f), data: buf.toString("base64") } }; }), { type: "text", text: user }]
     : user;
   const body = { model, max_tokens, system, messages: [{ role: "user", content }] };
   if (tools.includes("web_search")) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }];
