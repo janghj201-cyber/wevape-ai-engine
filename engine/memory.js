@@ -250,10 +250,10 @@ export async function panel_study(cfg) {
         // 자료함: 대표가 직접 올린 이미지를 최우선으로 본다
         try {
           if (cfg.materials_page) {
-            const urls = await N.pageImages(cfg.materials_page, 2);
+            const urls = await N.pageImages(cfg.materials_page, 5);
             let mi = 0;
             for (const u of urls) { try { const rr = await fetch(u); if (rr.ok) { const p2 = `/tmp/material-${mi}.png`; fs.writeFileSync(p2, Buffer.from(await rr.arrayBuffer())); imgs.unshift(p2); mi++; } } catch {} }
-            if (mi) imgNote += `\n최우선 첨부: 대표가 자료함에 직접 올린 이미지 ${mi}장 — 대표가 원하는 결을 보여주는 자료다. 가장 무겁게 관찰해 카드로 남긴다(source는 "자료함").`;
+            if (mi) imgNote += `\n최우선 첨부: 대표가 자료함에 직접 올린 이미지 ${mi}장 — 대표가 "이 정도 결"이라고 보여준 기준선이다. 가장 무겁게 관찰해 카드로 남긴다(source는 "자료함"). 관찰 항목: 무엇이 주인공이고 어느 크기인가 / 배경·조명·질감 / 글자와 그림의 관계 / 정보 밀도 / **우리 최근 결과물과의 격차가 정확히 무엇인가**. 단, 그 자료에 있는 맛 이름·당도·쿨링·타격감 수치·니코틴 농도·과일 이미지는 우리 POP에 쓸 수 없다(가향표시 금지). 가져올 것은 완성도의 수준이지 금지된 소재가 아니다 — 이 구분을 카드에 명시한다.`;
           }
         } catch (e) { console.error("자료함 이미지 생략:", e.message.slice(0, 80)); }
         // 자료함 링크: 대표가 URL만 던져도 조직이 스스로 열어보고 분석한다 (이미 카드로 남긴 주소는 건너뜀)

@@ -77,7 +77,19 @@ export async function pop_designer_make(cfg, maxPops = 2) {
 지점: ${sm.name} / ${sm.addr} / ${sm.phone}
 기획 맥락:\n${planT.slice(0, 1200)}\n비주얼 트렌드 메모:\n${trendT.slice(0, 600)}
 규칙: 브랜드 가이드의 무드 4종 중 하나. 제품명·맛·니코틴·가격·할인·이벤트·최상급 문구 금지. 글자 수 제한을 지키지 않으면 레이아웃이 깨진다.`;
-    let spec = await askJSON({ system: dsys, model: cfg.staff.pop_designer.model, max_tokens: 1500,
+    // 대표 자료함 이미지를 디자이너가 직접 본다 — 대표가 원하는 결은 글이 아니라 그림으로만 전달된다
+    let matImgs = [];
+    try {
+      if (cfg.materials_page) {
+        const urls = await N.pageImages(cfg.materials_page, 4);
+        let mi = 0;
+        for (const u of urls) { try { const rr = await fetch(u); if (rr.ok) { const pth = `/tmp/pop-material-${mi}.png`; fs.writeFileSync(pth, Buffer.from(await rr.arrayBuffer())); matImgs.push(pth); mi++; } } catch {} }
+        if (mi) console.error(`대표 자료함 이미지 ${mi}장을 POP 디자이너에게 첨부`);
+      }
+    } catch (e) { console.error("자료함 이미지 첨부 생략:", e.message.slice(0, 80)); }
+    const matNote = matImgs.length ? `\n\n# 첨부: 대표가 자료함에 직접 올린 이미지 ${matImgs.length}장 — 이것이 대표의 기준선이다\n대표가 "이 정도 결"이라고 보여준 자료다. 직접 보고 다음을 뽑아 스펙에 반영하라.\n- 무엇이 주인공인가(제품인가 공간인가), 어느 크기로 놓였는가\n- 배경 처리·조명·질감·색 대비\n- 글자와 그림의 관계, 여백, 정보 밀도\n- 우리 최근 POP과의 격차는 정확히 무엇인가\n\n**단, 그대로 베끼지 않는다.** 그 자료에는 우리 매장 POP에 쓸 수 없는 것이 섞여 있다 — 맛 이름·당도/쿨링/타격감 수치·니코틴 농도(3% 등)·과일 이미지는 가향표시 금지(국건법 9조의3)와 니코틴 함량 표시 금지에 걸린다. **가져올 것은 "완성도의 수준"이지 "금지된 소재"가 아니다.** 기기 본체·조명·질감·구도·색 대비만 가져온다.` : "";
+
+    let spec = await askJSON({ system: dsys + matNote, images: matImgs, model: cfg.staff.pop_designer.model, max_tokens: 1500,
       dry: { title: `[${store}] 직영 매장 안내 POP`, mood: "glow-dark", accent: "#ff2fd0", tag: "본사 직영", headline: ["같은 자리", "같은 사람"], sub: "본사 대표 직영 매장입니다", hero_word: "WEVAPE", kr: "기기 단자·배터리 점검, 물어보세요", zh: "本店为总公司直营门店 · 库存充足", purpose: "매장 문 부착", check: "○" }, user: specPrompt });
     // 3) 영화 보는 사람(관점 패널·비주얼 전문가): 디자인 리뷰 → 디자이너 1회 수정
     let critique = null;
