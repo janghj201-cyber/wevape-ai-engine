@@ -194,20 +194,31 @@ async function gather(cfg, staffId, sys, brief) {
 }
 
 // 카드에 붙은 출처가 실제로 열리는지 확인한다. 안 열리면 그 카드는 버린다.
-const BAD_HOST = /hugedomains|afternic|sedo|dan\.com|godaddy.*(?:auction|broker)|buy.?this.?domain|parked/i;
-async function sourceAlive(url) {
-  if (!/^https?:\/\//i.test(String(url || ""))) return true;   // repo:·자료함 등 내부 출처는 통과
+const BAD_HOST = /hugedomains|afternic|sedo|dan\.com|godaddy.*(?:auction|broker)|buy.?this.?domain|domain.?for.?sale/i;
+// 출처 확인 결과를 세 가지로 나눈다. "확인 불가"와 "가짜"는 완전히 다른 것이다.
+//   ok      — 실제로 열렸다
+//   dead    — 도메인이 없거나(DNS) 404이거나 매물 페이지다 → 지어낸 출처일 가능성
+//   unknown — 차단·타임아웃·403 등. 우리가 못 읽은 것이지 가짜라는 뜻이 아니다 → 절대 카드를 내리지 않는다
+async function checkSource(url) {
+  if (!/^https?:\/\//i.test(String(url || ""))) return { v: "ok", why: "내부 출처" };
   try {
-    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch(url, { redirect: "follow", signal: ctrl.signal, headers: { "user-agent": "Mozilla/5.0 (wevape-ai-engine 출처검증)" } });
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch(url, { redirect: "follow", signal: ctrl.signal,
+      headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36", "accept-language": "ko,en;q=0.8" } });
     clearTimeout(t);
-    if (!r.ok) return false;
-    if (BAD_HOST.test(r.url)) return false;                       // 매물로 넘어간 도메인
+    if (BAD_HOST.test(r.url)) return { v: "dead", why: `매물 도메인으로 이동: ${r.url.slice(0, 80)}` };
+    if (r.status === 404 || r.status === 410) return { v: "dead", why: `HTTP ${r.status}` };
+    if (!r.ok) return { v: "unknown", why: `HTTP ${r.status}` };   // 403·429·503 등은 차단일 뿐
     const body = (await r.text()).slice(0, 4000);
-    if (BAD_HOST.test(body)) return false;
-    return true;
-  } catch { return false; }
+    if (BAD_HOST.test(body)) return { v: "dead", why: "매물 안내 페이지" };
+    return { v: "ok", why: "" };
+  } catch (e) {
+    const m = String(e.message || e);
+    if (/ENOTFOUND|getaddrinfo|Name or service not known|EAI_AGAIN/i.test(m)) return { v: "dead", why: `도메인 없음 (${m.slice(0, 40)})` };
+    return { v: "unknown", why: m.slice(0, 60) };                  // 타임아웃·네트워크 차단
+  }
 }
+async function sourceAlive(url) { return (await checkSource(url)).v !== "dead"; }
 
 // ── 관점 패널 자습: 각자 관점의 전문가로서 매일 읽고 카드로 남긴다 (관리자 지시: 시키지 않아도 스스로 공부)
 const PANEL_STUDY = {
@@ -293,35 +304,56 @@ export async function panel_study(cfg) {
 // 이미 쌓인 지식 카드의 출처를 실제로 열어보고, 안 열리는 카드는 상태를 「출처 불명」으로 내린다.
 // inject()는 상태=활성인 카드만 주입하므로, 내려간 카드는 그 즉시 직원들 눈에서 사라진다.
 // 지우지는 않는다 — 나중에 출처가 되살아나면 되돌릴 수 있어야 하고, 무엇이 왜 걸렸는지 대표가 봐야 한다.
-export async function memory_audit(cfg, maxCheck = 60) {
+export async function memory_audit(cfg, maxCheck = 80) {
   if (!dbId(cfg) || DRY) return "기억 DB 미설정";
+
+  // 0) 먼저 우리 자신을 검사한다. 확실히 살아 있는 주소 3개가 다 안 열리면
+  //    그것은 카드가 가짜인 게 아니라 이 실행 환경이 밖으로 못 나가는 것이다. 그때는 아무것도 건드리지 않는다.
+  const CONTROL = ["https://www.shopify.com/blog/retail-signage", "https://namu.wiki", "https://www.naver.com"];
+  const ctrl = await Promise.all(CONTROL.map(u => checkSource(u)));
+  if (!ctrl.some(c => c.v === "ok")) {
+    console.error("기억 감사 중단 — 대조군이 전부 실패:", ctrl.map((c, i) => `${CONTROL[i]} → ${c.v}(${c.why})`).join(" / "));
+    return "기억 감사 중단 — 이 실행 환경에서 외부 주소를 열 수 없습니다(카드 문제 아님). 아무 카드도 건드리지 않았습니다.";
+  }
+
+  // 1) 되돌리기 — 이전 감사에서 잘못 내려간 카드가 있으면 먼저 되살린다
+  const held = await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "상태", select: { equals: "출처 불명" } }] }, 400);
+  let restored = 0;
+  for (const k of held) {
+    const c = await checkSource(k.source);
+    if (c.v === "dead") continue;                                  // 진짜 죽은 것만 그대로 둔다
+    try { await N.req("PATCH", `/pages/${k.id}`, { properties: { "상태": { select: { name: "활성" } } } }); restored++; }
+    catch (e) { console.error("복구 실패:", k.title, e.message.slice(0, 50)); }
+  }
+
+  // 2) 활성 카드 검사 — "확인 불가"는 절대 내리지 않는다
   const all = await queryMemory(cfg, { and: [{ property: "유형", select: { equals: "지식 카드" } }, { property: "상태", select: { equals: "활성" } }] }, 800);
   const todo = all.filter(k => /^https?:\/\//i.test(k.source || "")).slice(0, maxCheck);
-  if (!todo.length) return "검증할 외부 출처 카드 없음";
-  const dead = [], seen = new Map();
+  const dead = [], seen = new Map(); let unknown = 0;
   for (const k of todo) {
     const key = k.source.split("?")[0];
-    if (!seen.has(key)) seen.set(key, await sourceAlive(k.source));   // 같은 주소는 한 번만 확인
-    if (!seen.get(key)) dead.push(k);
+    if (!seen.has(key)) seen.set(key, await checkSource(k.source));
+    const c = seen.get(key);
+    if (c.v === "dead") dead.push([k, c.why]);
+    else if (c.v === "unknown") unknown++;
   }
-  for (const k of dead) {
-    try {
-      await N.req("PATCH", `/pages/${k.id}`, { properties: { "상태": { select: { name: "출처 불명" } } } });
-    } catch (e) { console.error("카드 상태 변경 실패:", k.title, e.message.slice(0, 60)); }
+  for (const [k, why] of dead) {
+    try { await N.req("PATCH", `/pages/${k.id}`, { properties: { "상태": { select: { name: "출처 불명" } }, "요약": { rich_text: rich(`[출처 확인 실패: ${why}] ${k.summary}`) } } }); }
+    catch (e) { console.error("카드 상태 변경 실패:", k.title, e.message.slice(0, 60)); }
   }
-  const byStaff = {};
-  for (const k of dead) byStaff[k.staff] = (byStaff[k.staff] || 0) + 1;
-  const line = Object.entries(byStaff).map(([s, n]) => `${s} ${n}장`).join(" · ") || "없음";
-  console.error(`기억 감사: ${todo.length}장 확인 · ${dead.length}장 출처 불명 (${line})`);
-  if (dead.length) {
+  const byStaff = {}; for (const [k] of dead) byStaff[k.staff] = (byStaff[k.staff] || 0) + 1;
+  const line = Object.entries(byStaff).map(([st, n]) => `${st} ${n}장`).join(" · ") || "없음";
+  const msg = `기억 감사: ${todo.length}장 확인 · 출처 불명 ${dead.length}장 내림 (${line}) · 확인 불가 ${unknown}장은 그대로 둠${restored ? ` · 이전에 잘못 내려간 ${restored}장 복구` : ""}`;
+  console.error(msg);
+  if (dead.length || restored) {
     const w = isoWeek(new Date(), cfg.week_offset || 0);
     await N.createContent({
-      title: `기억 감사 ${kstNow().slice(0, 10)} — 출처 불명 ${dead.length}장`,
+      title: `기억 감사 ${kstNow().slice(0, 10)} — 불명 ${dead.length}장 / 복구 ${restored}장`,
       status: "승인 대기", line: "보고", type: "보고서", team: "편집장", author: "관리자", week: w,
-      basis: `지식 카드 ${todo.length}장 출처 확인 · ${kstNow()}`,
-      review: `출처 불명 ${dead.length}장 → 상태 내림 (${line})`,
-      body: `# 기억 감사\n\n확인한 카드 **${todo.length}장** 중 출처가 실제로 열리지 않는 카드 **${dead.length}장**을 찾아 상태를 「출처 불명」으로 내렸습니다. 이 카드들은 더 이상 직원들에게 주입되지 않습니다.\n\n직원별: ${line}\n\n## 내려간 카드\n${dead.map(k => `- (${k.staff}) ${k.title}\n  - 출처: ${k.source}`).join("\n")}\n\n---\n출처가 열리지 않는다는 것은 그 카드의 근거를 확인할 수 없다는 뜻입니다. 내용이 틀렸다고 단정하는 것은 아니지만, 확인되지 않은 것을 사실처럼 쓰지 않는 것이 이 조직의 원칙입니다.\n\n(${kstNow().slice(0, 16)})`,
+      basis: `지식 카드 ${todo.length}장 출처 확인 · ${kstNow()}`, review: msg.slice(0, 200),
+      body: `# 기억 감사\n\n${msg}\n\n판정 기준은 셋입니다. **도메인이 없거나 404이거나 매물 페이지로 넘어가면** 「출처 불명」으로 내립니다. **차단·타임아웃(403·429·연결 실패)은 우리가 못 읽은 것이지 가짜라는 뜻이 아니므로** 그대로 둡니다.\n\n${dead.length ? `## 내려간 카드\n${dead.map(([k, why]) => `- (${k.staff}) ${k.title}\n  - 출처: ${k.source}\n  - 사유: ${why}`).join("\n")}` : "## 내려간 카드\n없음"}\n\n${restored ? `## 복구한 카드 ${restored}장\n이전 감사에서 차단·타임아웃을 가짜로 잘못 판정해 내렸던 카드들입니다. 다시 활성으로 되돌렸습니다.` : ""}\n\n(${kstNow().slice(0, 16)})`,
     });
   }
-  return `기억 감사: ${todo.length}장 확인 · 출처 불명 ${dead.length}장 내림 (${line})`;
+  return msg;
 }
+
