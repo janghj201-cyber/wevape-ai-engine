@@ -58,6 +58,7 @@ function stamp(memo, mark) {
     .map((s) => s.trim())
     .filter((s) => s && !s.startsWith(MARK_HOLD) && !s.startsWith(MARK_WAIT))
     .join(" / ");
+  if (!mark) return base;
   return base ? `${base} / ${mark}` : mark;
 }
 
@@ -184,7 +185,7 @@ export async function sns_publish(cfg, maxPosts = 3) {
         store,
         channel: CHANNEL,
         category: CATEGORY_MAP[it.type] || "D.매장일상",
-        approved: true,
+        approved: false,   // 대표 결정(2026-08-30): 발행 시스템 승인함에 한 번 더 쌓아 대표가 눈으로 보고 최종 승인
         text,
       });
       slot += 20;
