@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-31T07:02",
+ "generated_at": "2026-08-31T09:27",
  "week": "2026-W37",
  "manager": "장현진 팀장",
  "staff": [
@@ -2484,11 +2484,29 @@
   }
  ],
  "memory": {
-  "knowledge": 247,
+  "knowledge": 245,
   "notes": 89,
-  "lessons": 64,
+  "lessons": 66,
   "proposals": 0,
   "latest": [
+   {
+    "t": "2026-08-31T09:27+09:00",
+    "type": "교훈 카드",
+    "staff": "규제 검수관",
+    "title": "검수 기준 추가: 「12점」mood 바꿨으면 prompt도 함께",
+    "summary": "무드가 dark/glow 계열이면 프롬프트에 night·neon·wet 키워드 필수 확인",
+    "url": "https://app.notion.com/p/12-mood-prompt-3cd09730b90681899617ef66a4901e87",
+    "category": "관리자 교훈"
+   },
+   {
+    "t": "2026-08-31T09:27+09:00",
+    "type": "교훈 카드",
+    "staff": "POP 디자이너",
+    "title": "「12점」mood 바꿨으면 prompt도 함께",
+    "summary": "① \"JSON mood를 'glow-dark'로 맞췄으면 hero_prompt도 그에 맞게: 'Korean shopping district at night, wet asphalt reflecting purple an",
+    "url": "https://app.notion.com/p/12-mood-prompt-3cd09730b90681c2b36af4797e6d08f9",
+    "category": "관리자 교훈"
+   },
    {
     "t": "2026-08-31T05:14+09:00",
     "type": "업무 노트",
@@ -2578,24 +2596,6 @@
     "summary": "전자담배 매장 방문 후기에서 고객이 응대를 평가하는 표현: '그냥 딱 느끼기에도 사장님에게서는 귀찮음이 느껴졌다. 당연히 그냥 나왔다.' '전자담배 경력이 얼마 안돼 이 액상 저 액상 설명을 들으면서 구매에 도움을 ",
     "url": "https://app.notion.com/p/3cc09730b9068118907afc3f6cb6ba0d",
     "category": "고객 언어"
-   },
-   {
-    "t": "2026-08-31T05:13+09:00",
-    "type": "지식 카드",
-    "staff": "업계 독서가",
-    "title": "글 구조·첫 문장: '매장 뒤쪽에 방이 있는지 자다 일어난듯한 모습으로 하품하며 나를 맞이'—장면 묘사형",
-    "summary": "전자담배 매장 방문 후기에서 실제 쓰인 첫 문장: '매장 뒤쪽에 방이 있는지 자다 일어난듯한 모습으로 하품을 하며 나를 맞이해줬다.' 장면 묘사형 첫 문장은 독자를 그 순간으로 끌어당긴다. 안내문처럼 '저희 매장은~",
-    "url": "https://app.notion.com/p/3cc09730b90681938fc0fd90c748fecb",
-    "category": "글 구조·첫 문장"
-   },
-   {
-    "t": "2026-08-31T05:13+09:00",
-    "type": "지식 카드",
-    "staff": "업계 독서가",
-    "title": "글 구조·첫 문단: '첫 문단은 글에서 가장 중요—공감 불러일으키자'",
-    "summary": "블로그 글의 첫 문단은 가장 중요하다. 본문이 유익해도 첫 문단이 매력적이지 못하면 사람들은 정독하지 않는다. 많은 소상공인이 본문에만 신경 쓰고 첫 문단을 가볍게 쓰는 실수를 한다. 첫 문단에서 고객의 공감을 불러",
-    "url": "https://app.notion.com/p/3cc09730b9068152a867e84b2ed95100",
-    "category": "글 구조·첫 문장"
    }
   ]
  },
@@ -3076,7 +3076,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-08-30T23:02:29.809Z",
+  "at": "2026-08-31T01:27:53.414Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
