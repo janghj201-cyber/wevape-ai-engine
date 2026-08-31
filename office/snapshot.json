@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-31T21:11",
+ "generated_at": "2026-09-01T01:03",
  "week": "2026-W37",
  "manager": "장현진 팀장",
  "staff": [
@@ -2672,25 +2672,25 @@
   ]
  },
  "score": {
-  "week": "2026-W35",
+  "week": "2026-W37",
   "blog_quality": 35,
-  "pop_quality": 26,
+  "pop_quality": 5,
   "execution": 0,
   "regulation": 60,
-  "learning": 80,
-  "collaboration": 100,
+  "learning": 90,
+  "collaboration": 75,
   "counts": {
-   "items": 45,
-   "week_items": 36,
-   "approved": 4,
+   "items": 121,
+   "week_items": 6,
+   "approved": 9,
    "published": 0,
-   "knowledge": 234,
-   "lessons": 42,
-   "repeat": 2,
-   "standups": 4,
-   "waiting": 0
+   "knowledge": 244,
+   "lessons": 66,
+   "repeat": 1,
+   "standups": 12,
+   "waiting": 8
   },
-  "total": 45,
+  "total": 40,
   "weights": {
    "blog_quality": 25,
    "pop_quality": 20,
@@ -2699,8 +2699,7 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-08-23T13:26",
-  "url": "https://app.notion.com/p/2026-W35-45-100-3c509730b90681cf9130e34001d7add0"
+  "at": "2026-09-01T01:03"
  },
  "talk": {
   "standup": {
@@ -3148,7 +3147,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-08-31T13:11:41.355Z",
+  "at": "2026-08-31T17:03:15.614Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
