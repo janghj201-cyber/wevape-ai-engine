@@ -71,12 +71,14 @@ a{color:inherit}
 .search input{width:180px;padding:6px 10px 6px 28px;border:1px solid var(--line);border-radius:8px;background:var(--bg);outline:0}
 .search input:focus{border-color:var(--active)}
 .search .ic{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--ink3);font-size:12px}
-.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:12.5px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:12.5px;white-space:nowrap;flex:0 0 auto}
 .btn:hover{border-color:var(--ink3)}
 .btn.pri{background:var(--active);border-color:var(--active);color:#fff}
 .btn.pri:hover{filter:brightness(1.08)}
 .btn.sm{padding:4px 9px;font-size:11.5px;border-radius:7px}
-.icobtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;width:31px;height:31px;cursor:pointer;display:grid;place-items:center}
+.icobtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;width:31px;height:31px;cursor:pointer;display:grid;place-items:center;flex:0 0 auto}
+#conn{border-color:var(--stop);color:var(--stop)}
+#conn.on{border-color:var(--done);color:var(--done)}
 .nav .cnt{margin-left:5px;background:var(--stop);color:#fff;border-radius:999px;padding:0 6px;font-size:10.5px;font-weight:900}
 #fresh{border-color:var(--flow);color:var(--flow);animation:bl 2s ease-in-out infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.55}}
@@ -256,12 +258,55 @@ a{color:inherit}
   .msel{display:block!important}
 }
 @media (max-width:880px){
-  .wrap{grid-template-columns:minmax(0,1fr)}
+  .wrap{grid-template-columns:minmax(0,1fr);padding:8px;gap:9px;padding-bottom:76px}
   .insp{display:none}
-  .search input{width:120px}
+  .search{display:none}
+  .agents{display:none}
   .stages{grid-template-columns:repeat(2,1fr)}
   .wire{display:none}
+  .bigdrop .btn.big.cam{display:inline-flex;align-items:center;gap:6px}
+  .bigdrop .btn.big{flex:1 1 auto;justify-content:center}
+  #matgo{flex:1 1 100%;margin-left:0}
+  /* 상단 바: 한 줄 고정. 폰에서 필수 버튼만 남긴다 */
+  .top{gap:7px;padding:0 9px;height:50px;flex-wrap:nowrap;overflow:hidden}
+  .brand span:last-child{display:none}
+  .top #motion,.top #theme,.top #xcheck{display:none}
+  .top .btn{padding:8px 11px;font-size:12.5px}
+  /* 아래 탭바 — 엄지로 누르는 자리 */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:60;margin:0;gap:0;
+    background:var(--panel);border-top:1px solid var(--line);
+    padding:5px 4px calc(5px + env(safe-area-inset-bottom));
+    box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+  .nav button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:11.5px;border-radius:9px;
+    display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap}
+  .nav button[aria-selected="true"]{background:var(--line2);color:var(--active)}
+  .nav .cnt{margin-left:0}
+  .ibh{padding:14px 12px}
+  .ibh .t{font-size:14.5px}
+  .approve textarea{min-height:70px;font-size:13px}
+  .btn.sm{padding:9px 13px;font-size:13px}
+  .arow input[type=number]{width:76px;padding:9px}
+  .body{font-size:13px;max-height:260px}
 }
+.bigdrop{padding:13px;display:flex;flex-direction:column;gap:10px}
+.bigdrop textarea{width:100%;box-sizing:border-box;min-height:150px;resize:vertical;
+  padding:13px;border:2px dashed var(--line2);border-radius:12px;background:var(--bg);outline:0;line-height:1.7}
+.bigdrop textarea:focus{border-color:var(--active);border-style:solid}
+.bigdrop.over textarea{border-color:var(--active);background:color-mix(in srgb,var(--active) 7%,transparent)}
+.picks{display:flex;flex-wrap:wrap;gap:7px}
+.picks .pk{display:flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:11.5px;color:var(--ink2)}
+.matbtns{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.btn.big{padding:13px 18px;font-size:14px;border-radius:11px;display:inline-flex;align-items:center;gap:6px}
+.btn.big.cam{display:none}
+#matgo{margin-left:auto;min-width:118px;justify-content:center}
+.setup{margin:0;padding:13px;border:1px solid var(--stop);border-radius:12px;background:color-mix(in srgb,var(--stop) 6%,transparent)}
+.setup h4{margin:0 0 7px;font-size:13.5px}
+.setup ol{margin:8px 0;padding-left:19px;line-height:1.75}
+.setup .k{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.setup .tokin{flex:1 1 200px;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);outline:0}
+.setup .tokin:focus{border-color:var(--active)}
+.setup .k .btn{padding:11px 18px}
+body[data-view="mat"] .msel,body[data-view="inbox"] .msel{display:none!important}
 .msel{display:none;padding:9px 13px}
 .msel select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);outline:0}
 :root[data-motion="off"] *{animation:none!important;transition:none!important}
@@ -272,7 +317,8 @@ a{color:inherit}
   <div class="brand"><span class="logo">W</span><span>Mission Control</span></div>
   <nav class="nav" id="nav">
     <button data-v="inbox">결재<span class="cnt" id="inboxn" hidden></span></button>
-    <button data-v="command" aria-selected="true">Command</button>
+    <button data-v="mat">📥 자료</button>
+    <button data-v="command" aria-selected="true">현황</button>
     <button data-v="rooms">Rooms</button>
     <button data-v="library">Library</button>
   </nav>
@@ -281,6 +327,7 @@ a{color:inherit}
   <div class="search"><span class="ic">⌕</span><input id="q" placeholder="결과물 검색" aria-label="검색"></div>
   <button class="icobtn" id="motion" title="모션 끄기/켜기" aria-label="모션 전환">◐</button>
   <button class="icobtn" id="theme" title="밝게/어둡게" aria-label="테마 전환">☾</button>
+  <button class="btn" id="conn" title="결재·자료를 보내려면 한 번만 연결하면 됩니다">연결 확인 중</button>
   <button class="btn" id="fresh" hidden>새 내용 · 새로고침</button>
   <button class="btn" id="xcheck" title="같은 과제를 우리 직원과 GPT에 각각 시켜 비교">⚖ 교차검증</button>
   <button class="btn pri" id="newmission">＋ 지시</button>
@@ -325,6 +372,35 @@ a{color:inherit}
         <div id="inbox"></div></div>
     </section>
 
+    <section id="v-mat" class="hide">
+      <div class="card">
+        <h3>📥 자료 던지기 <span class="n">직원들이 다음 근무에 읽습니다</span></h3>
+        <div class="bigdrop" id="drop">
+          <textarea id="mat" placeholder="여기에 그냥 붙여넣으세요 (Ctrl+V)
+
+· 링크를 넣으면 → 직원이 그 페이지를 직접 열어보고 카드로 정리합니다
+· 글을 적으면 → 전 직원이 읽는 교훈 카드가 됩니다
+· 사진은 아래 버튼이나 끌어다 놓기"></textarea>
+          <div class="picks" id="picks"></div>
+          <div class="matbtns">
+            <label class="btn big">📁 사진 고르기<input type="file" id="matfile" accept="image/*" multiple hidden></label>
+            <label class="btn big cam">📷 찍어서 올리기<input type="file" id="matcam" accept="image/*" capture="environment" hidden></label>
+            <button class="btn pri big" id="matgo">보내기</button>
+          </div>
+          <div class="hint" id="matout"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>이렇게 쓰시면 됩니다</h3>
+        <div class="pad" style="font-size:12.5px;line-height:1.9;color:var(--ink2)">
+          <b style="color:var(--ink)">릴스·유튜브 링크</b> — 주소만 붙여넣고 보내기. 영화 보는 사람이 열어보고 「우리 적용 포인트」를 보고서로 올립니다.<br>
+          <b style="color:var(--ink)">경쟁사 POP 사진</b> — 사진 고르기로 여러 장 한 번에. 저장소에 쌓이고 POP 디자이너가 만들 때 직접 봅니다.<br>
+          <b style="color:var(--ink)">한 줄 지시</b> — "다음 주는 개학 분위기로" 같은 말. 전 직원 교훈 카드가 됩니다.<br>
+          <b style="color:var(--ink)">사진 + 메모 같이</b> — 사진 고르고 글도 적으면 둘이 묶여서 갑니다.
+        </div>
+      </div>
+    </section>
+
     <section id="v-rooms" class="hide">
       <div class="card">
         <div class="tabs" id="rtabs">
@@ -357,19 +433,6 @@ a{color:inherit}
       <div class="kv" id="ikv"></div>
       <div id="iout"></div>
       <div id="iapp"></div>
-    </div>
-    <div class="card">
-      <h3>📥 자료 던지기 <span class="n">직원들이 읽습니다</span></h3>
-      <div class="drop" id="drop">
-        <textarea id="mat" placeholder="여기에 붙여넣으세요.&#10;· 링크(릴스·유튜브·웹) → 조직이 직접 열어보고 카드로 남깁니다&#10;· 글·메모 → 전 직원 교훈 카드가 됩니다&#10;· 사진 → 아래로 끌어다 놓거나 붙여넣기(Ctrl+V)"></textarea>
-        <div class="picks" id="picks"></div>
-        <div class="arow">
-          <button class="btn pri sm" id="matgo">보내기</button>
-          <label class="btn sm" style="cursor:pointer">사진 고르기<input type="file" id="matfile" accept="image/*" multiple hidden></label>
-          <a class="btn sm" href="" id="matnotion" target="_blank" rel="noopener" style="text-decoration:none">노션 자료함</a>
-        </div>
-        <div class="hint" id="matout">사진은 저장소 <span class="mono">office/materials/</span> 에 올라가고, 글·링크는 자료함에 남습니다.</div>
-      </div>
     </div>
     <div class="card">
       <h3>연결 <span class="n">외부</span></h3>
@@ -618,8 +681,8 @@ function renderInbox(){
   const P = D.pending || [];
   $("#ibn").textContent = P.length ? `${P.length}건 대기` : "비어 있음";
   const b=$("#inboxn"); b.hidden = !P.length; b.textContent = P.length;
-  if(!P.length){ $("#inbox").innerHTML = `<div class="empty">지금 결재할 것이 없습니다.</div>`; return; }
-  $("#inbox").innerHTML = P.map((r,idx)=>{
+  if(!P.length){ $("#inbox").innerHTML = setupHTML()+`<div class="empty">지금 결재할 것이 없습니다.</div>`; wireSetup($("#inbox")); return; }
+  $("#inbox").innerHTML = setupHTML() + P.map((r,idx)=>{
     const days = Math.floor((NOW-new Date(r.t))/86400e3);
     const pop = (D.pops||[]).find(p=>p.notion_id===r.id);
     return `<div class="ib ${idx===0?"open":""}" data-ib="${idx}">
@@ -647,6 +710,19 @@ function renderInbox(){
         </div>
       </div></div>`;
   }).join("");
+  wireSetup($("#inbox"));
+}
+
+function renderMat(){
+  const holder=$("#v-mat .card");
+  let box=holder.querySelector(".setup");
+  if(box) box.remove();
+  holder.insertAdjacentHTML("afterbegin", setupHTML());
+  wireSetup(holder);
+  $("#matout").className="hint";
+  $("#matout").textContent = connOK()
+    ? "사진은 저장소 office/materials/ 에 쌓이고, 글·링크는 조직에 바로 전달됩니다."
+    : "먼저 위에서 한 번 연결해 주세요.";
 }
 
 /* ── Rooms / Library ─────────────────────── */
@@ -714,9 +790,42 @@ function renderLibrary(t){
 
 /* ── 결재·지시 (GitHub Actions dispatch) ──── */
 function tok(){ return localStorage.getItem("wv_gh_token")||""; }
+function connOK(){ return !!tok(); }
+function paintConn(){
+  const b=$("#conn");
+  b.classList.toggle("on",connOK());
+  b.textContent = connOK() ? "연결됨" : "연결 필요";
+  document.querySelectorAll(".setup").forEach(e=>e.hidden=connOK());
+}
+// 한 번만 하면 됩니다. 발급 링크에 권한이 미리 채워져 있어 [Generate] 만 누르면 끝.
+const TOKEN_URL = "https://github.com/settings/tokens/new?scopes=repo&description=" + encodeURIComponent("위베이프 결재·자료");
+function setupHTML(){
+  return `<div class="setup" ${connOK()?"hidden":""}>
+    <h4>⚠ 한 번만 연결하면 됩니다</h4>
+    <div style="font-size:12.5px;color:var(--ink2)">연결해야 이 화면에서 승인·반려하고 자료를 보낼 수 있습니다. 이 브라우저에만 저장되고 어디에도 전송되지 않습니다.</div>
+    <ol style="font-size:12.5px">
+      <li><a href="${TOKEN_URL}" target="_blank" rel="noopener"><b>여기를 눌러 열고</b></a> 맨 아래 <b>Generate token</b> 초록 버튼만 누르세요 (권한은 미리 채워져 있습니다)</li>
+      <li>나온 <span class="mono">ghp_…</span> 를 복사해서 아래에 붙여넣고 저장</li>
+    </ol>
+    <div class="k"><input type="password" class="tokin" placeholder="ghp_ 로 시작하는 값을 붙여넣기" autocomplete="off">
+      <button class="btn pri" data-save="1">저장</button></div>
+    <div class="hint tokmsg"></div>
+  </div>`;
+}
+function wireSetup(root){
+  root.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{
+    const box=b.closest(".setup"), v=box.querySelector(".tokin").value.trim(), m=box.querySelector(".tokmsg");
+    if(!v){ m.className="hint err"; m.textContent="값이 비어 있습니다."; return; }
+    localStorage.setItem("wv_gh_token", v);
+    m.className="hint ok"; m.textContent="연결됐습니다. 이제 승인·자료 보내기가 됩니다.";
+    paintConn(); setTimeout(()=>{ renderInbox(); renderMat(); }, 600);
+  });
+}
 function askTok(){
-  const t=prompt("GitHub 토큰(fine-grained, 이 리포 Actions: Read and write). 이 브라우저에만 저장됩니다.", tok());
-  if(t!==null) localStorage.setItem("wv_gh_token", t.trim());
+  view="mat"; [...$("#nav").children].forEach(x=>x.setAttribute("aria-selected",x.dataset.v==="mat"));
+  ["inbox","mat","command","rooms","library"].forEach(v=>$("#v-"+v).classList.toggle("hide",v!=="mat"));
+  renderMat();
+  setTimeout(()=>document.querySelector(".setup .tokin")?.focus(),200);
 }
 async function dispatch(inputs, out){
   const t=tok();
@@ -779,13 +888,15 @@ $("#matgo").addEventListener("click",async ()=>{
 /* ── 이벤트 배선 ─────────────────────────── */
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button[data-v]"); if(!b) return;
-  view=b.dataset.v;
+  view=b.dataset.v; document.body.dataset.view=view;
   [...$("#nav").children].forEach(x=>x.setAttribute("aria-selected", x===b));
   $("#v-inbox").classList.toggle("hide",view!=="inbox");
+  $("#v-mat").classList.toggle("hide",view!=="mat");
   $("#v-command").classList.toggle("hide",view!=="command");
   $("#v-rooms").classList.toggle("hide",view!=="rooms");
   $("#v-library").classList.toggle("hide",view!=="library");
   if(view==="inbox") renderInbox();
+  if(view==="mat") renderMat();
   if(view==="rooms") renderRooms("talk");
   if(view==="library") renderLibrary("pop");
 });
@@ -834,6 +945,8 @@ $("#xcheck").addEventListener("click",()=>{
   const out=document.createElement("div"); out.className="hint"; $("#links").prepend(out);
   dispatch({job:"crosscheck:run",memo:task.slice(0,900)},out);
 });
+$("#conn").addEventListener("click",askTok);
+$("#matcam")?.addEventListener("change",e=>addFiles(e.target.files));
 $("#theme").addEventListener("click",()=>{
   const r=document.documentElement, d=r.getAttribute("data-theme")==="dark";
   r.setAttribute("data-theme", d?"light":"dark"); localStorage.setItem("wv_theme", d?"light":"dark");
@@ -861,8 +974,7 @@ document.addEventListener("keydown",e=>{
     <span>AI ${D.staff.length}명 · 활동 ${working}건${idle>26?" · 정지":""}</span>`;
 
   if(cur) curStage=Math.max(0,cur.stages.findIndex(s=>s.status!=="done"));
-  $("#matnotion").href = D.materials_url || "#";
-  renderRail(); renderMission();
+  renderRail(); renderMission(); paintConn();
   const pn=(D.pending||[]).length; const bb=$("#inboxn"); bb.hidden=!pn; bb.textContent=pn;
   document.title = cur ? `${cur.bottleneck==="없음"?"정상":"⚑ "+cur.bottleneck} — Mission Control` : "Mission Control";
 
