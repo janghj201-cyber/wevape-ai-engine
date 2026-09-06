@@ -384,6 +384,72 @@ function failNotice(err) {
   return `> ⚠️ **회신을 쓰지 못했습니다.**\n>\n> 원인: \`${e.slice(0, 300)}\``;
 }
 
+// ── 자료 접수 (materials:add) — 2026-09-06 신설
+// 대표가 화면에서 글·링크를 던지면: ① 자료함 페이지에 그대로 남기고 ② 링크는 조직이 즉시 열어보고
+// ③ 본 것을 지식 카드로 남긴다. 노션에 들어가지 않아도 재료가 조직에 도착한다.
+export async function materials_add(cfg) {
+  const raw = (process.env.INPUT_MEMO || "").trim();
+  if (!raw) return "던진 자료 없음";
+  if (!cfg.materials_page) return "자료함 페이지가 설정돼 있지 않습니다 (department.json materials_page)";
+  const { w } = await ctx();
+  const urls = [...new Set((raw.match(/https?:\/\/[^\s)\]]+/g) || []).map(u => u.replace(/[.,)\]]+$/, "")))].slice(0, 3);
+  const note = raw.replace(/https?:\/\/[^\s)\]]+/g, "").trim();
+
+  // ① 자료함에 그대로 남긴다 — 원문은 손대지 않는다
+  try {
+    await N.req("PATCH", `/blocks/${cfg.materials_page}/children`, {
+      children: N.mdToBlocks(`\n---\n**대표 자료 · ${kstNow().slice(0, 16)}**\n\n${raw}`, 40),
+    });
+  } catch (e) { console.error("자료함 기록 실패:", e.message.slice(0, 80)); }
+
+  const out = [`자료함에 기록: ${raw.slice(0, 60)}${raw.length > 60 ? "…" : ""}`];
+  if (!urls.length) {
+    // 글만 던진 경우 — 공용 교훈 카드로 올려 전 직원이 다음 근무에 읽게 한다
+    try {
+      await M.createMemory(cfg, { title: `대표 자료: ${(note || raw).slice(0, 24)}`, type: "교훈 카드", staff: "공용",
+        category: "관리자 교훈", confidence: "높음", week: w, source: "자료함",
+        summary: (note || raw).slice(0, 300), body: `# 대표가 던진 자료\n\n${raw}\n\n(${kstNow().slice(0, 16)})` });
+      out.push("전 직원 교훈 카드로 등록 — 다음 근무부터 읽습니다");
+    } catch (e) { out.push("카드 등록 실패: " + e.message.slice(0, 60)); }
+    return out.join("\n");
+  }
+
+  // ② 링크는 직접 열어본다
+  let watchUrl;
+  try { ({ watchUrl } = await import("./eyes.js")); } catch { return out.concat("브라우저 눈 미설치 — 링크는 자료함에만 남았습니다").join("\n"); }
+  for (const [i, u] of urls.entries()) {
+    const shot = `/tmp/material-watch-${i}.png`;
+    const seen = await watchUrl(u, shot);
+    if (!seen) { out.push(`${u} — 열지 못했습니다(로그인 필요하거나 차단된 페이지일 수 있습니다)`); continue; }
+    const isVid = /youtube\.com|youtu\.be|instagram\.com|tiktok/.test(u);
+    const who = isVid ? "panel_film" : "industry_reader";
+    if (!cfg.staff[who]) { out.push(`${u} — 담당 직원 없음`); continue; }
+    try {
+      const j = await askJSON({
+        system: systemPrompt(cfg, who, await M.inject(cfg, who, { max: 6 })),
+        model: cfg.staff[who].model, max_tokens: 2500, images: seen.shot ? [seen.shot] : [],
+        dry: { cards: [] },
+        user: `대표가 자료함에 이 링크를 던졌습니다. 당신이 직접 열어봤고, 화면은 첨부돼 있습니다.\n\n주소: ${u}\n제목: ${seen.meta.title || "-"}\n설명: ${(seen.meta.desc || "").slice(0, 300)}\n\n[화면에서 읽은 글]\n${seen.text.slice(0, 5000) || "(없음)"}\n\n[자막]\n${seen.transcript.slice(0, 4000) || "(없음)"}\n\n대표가 함께 적은 말: ${note || "(없음)"}\n\n첨부 화면을 직접 보고, 위 글과 함께 지식 카드 2~5장으로 정리하세요.\nJSON: {"summary":"이 자료가 무엇인지 2~3문장","cards":[{"title":"카드 한 줄(30자)","summary":"우리 매장 콘텐츠에 바로 쓸 수 있게 2~4문장(250자). 화면에 실제로 있던 문구·수치·색을 인용","lines":["블로그","POP","SNS","영상","공통"],"confidence":"높음|보통|낮음"}],"apply":"위베이프에 어떻게 적용할지 2~3줄. 규제상 못 쓰는 요소가 있으면 그것도 명시"}\n\n규칙: 화면에서 실제로 본 것만 씁니다. 안 보였으면 안 보였다고 씁니다. 맛·니코틴·가격 표현은 금지 사례로만 기록합니다.` });
+      let n = 0;
+      for (const c of (j.cards || []).slice(0, 5)) {
+        if (!c.title) continue;
+        await M.createMemory(cfg, { title: c.title, type: "지식 카드", staff: M.NAME ? M.NAME(cfg, who) : (cfg.staff[who].display || who),
+          category: isVid ? "디자인·비주얼" : "소재·상황", lines: c.lines?.length ? c.lines : ["공통"],
+          confidence: c.confidence || "보통", source: u, week: w, summary: c.summary || "",
+          body: `# ${c.title}\n\n${c.summary}\n\n- 출처: ${u}\n- 대표 자료함 · ${kstNow().slice(0, 16)}` });
+        n++;
+      }
+      out.push(`${seen.meta.title || u} — 카드 ${n}장 · ${String(j.summary || "").slice(0, 120)}`);
+      // 적용 포인트는 대표가 바로 보게 결과물로 올린다
+      await N.createContent({ title: `자료 분석 — ${(seen.meta.title || u).slice(0, 40)}`, status: "승인 대기",
+        line: "기획", type: "보고서", team: "관점패널", author: cfg.staff[who].display || who, week: w,
+        basis: `대표 자료함 링크 · 직접 열람 · 카드 ${n}장`, review: String(j.summary || "").slice(0, 200),
+        body: `# 대표가 던진 자료를 보고\n\n- 주소: ${u}\n- 제목: ${seen.meta.title || "-"}\n\n## 무엇인가\n${j.summary || "-"}\n\n## 우리 적용 포인트\n${j.apply || "-"}\n\n## 남긴 지식 카드 ${n}장\n${(j.cards || []).map(c => `- ${c.title}`).join("\n")}\n\n(${kstNow().slice(0, 16)})` });
+    } catch (e) { out.push(`${u} 분석 실패: ${e.message.slice(0, 80)}`); }
+  }
+  return out.join("\n");
+}
+
 // ── 대표 지시: 대표실 명령창 → 편집장이 접수·해석 → 필요한 직원을 즉시 출근시켜 실행 → **반드시 회신을 남긴다**
 export async function ceo_instruct(cfg) {
   const memo = (process.env.INPUT_MEMO || "").trim();
@@ -443,7 +509,7 @@ const _R = {
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
   "regulation_reviewer:review": regulation_reviewer_review, "quality_editor:review": quality_editor_review, "risk:scan": risk_scan, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
-  "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup,
+  "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup, "materials:add": materials_add,
   "sns:publish": sns_publish, "sns:health": sns_health,
   "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,
   "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "company:score": C.score_apply, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview, "memory:audit": M.memory_audit,

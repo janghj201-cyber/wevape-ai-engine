@@ -35,6 +35,15 @@ export async function snapshot(cfg) {
   const kst = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(0, 16) + "+09:00";
   let memory = { knowledge: 0, notes: 0, lessons: 0, proposals: 0, latest: [] };
   try { const all = await queryMemory(cfg, undefined, 400); memory = { knowledge: all.filter(k => k.type === "지식 카드").length, notes: all.filter(k => k.type === "업무 노트").length, lessons: all.filter(k => k.type === "교훈 카드").length, proposals: all.filter(k => k.type === "개정 제안").length, latest: all.slice(0, 12).map(k => ({ t: kst(k.created), type: k.type, staff: k.staff, title: k.title, summary: k.summary.slice(0, 120), url: k.url, category: k.category })) }; } catch (e) { console.error("memory snapshot 실패:", e.message); }
+  // 결재함 — 승인 대기 건은 본문까지 실어 보낸다. 대표가 노션까지 가지 않고 화면에서 읽고 결재한다. (2026-09-06)
+  const pending = [];
+  for (const it of items.filter(i => i.status === "승인 대기").slice(-12)) {
+    let body = "";
+    try { body = (await N.readPageText(it.id)).slice(0, 3500); } catch (e) { body = "(본문을 읽지 못했습니다)"; }
+    pending.push({ id: it.id, title: it.title, line: it.line, type: it.type, author: it.author,
+      stores: it.stores, week: it.week, t: it.created, url: it.url,
+      basis: it.basis || "", review: it.review || "", memo: it.memo || "", body });
+  }
   const score = await currentScore(cfg);
   let talk = {}; try { talk = JSON.parse(fs.readFileSync(path.join(ROOT, "office/talk.json"), "utf8")); } catch {}
   const pops = popIndex().map(p => ({ ...p, status: items.find(i => i.id === p.notion_id)?.status || p.status }));
@@ -47,7 +56,7 @@ export async function snapshot(cfg) {
   const snap = {
     generated_at: kstNow().slice(0, 16), week: isoWeek(new Date(), cfg.week_offset || 0), manager: cfg.manager, staff, author_map: IDS, departments, pages_url: cfg.pages_url || "", repo: cfg.github_repo || "", materials_url: cfg.materials_url || "",
     items: items.map(i => ({ id: i.id, t: kst(i.created), title: i.title, status: i.status, line: i.line, type: i.type, author: i.author, stores: i.stores, week: i.week, basis: i.basis, review: i.review, memo: i.memo, url: i.url, file: fileOf(i) })),
-    pops, memory, score, talk,
+    pops, memory, score, talk, pending,
     meeting,
     schedule: Object.values(cfg.jobs).filter(j => !j.kst.includes("분마다")).map(j => ({ when: j.kst, who: j.run.map(r => ({ regulation_watcher: "reg", trend_researcher: "trend", editor: "editor", blog_writer: "writer", regulation_reviewer: "reviewer", upload_recorder: "uploader", pop_designer: "pop", panel_poem: "poem", industry_reader: "reader", memory: "reader", company: "editor", panel: "film", panel_film: "film", panel_novel: "novel" })[r.split(":")[0]]).filter(Boolean), what: j.run.map(r => r.split(":")[1]).join(" · ") })),
     next_shift: { at: new Date(Date.now() + 3600e3).toISOString(), label: "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서" },
