@@ -77,6 +77,8 @@ a{color:inherit}
 .btn.pri:hover{filter:brightness(1.08)}
 .btn.sm{padding:4px 9px;font-size:11.5px;border-radius:7px}
 .icobtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;width:31px;height:31px;cursor:pointer;display:grid;place-items:center}
+#fresh{border-color:var(--flow);color:var(--flow);animation:bl 2s ease-in-out infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.55}}
 
 /* ── 레이아웃 ────────────────────────────── */
 .wrap{display:grid;grid-template-columns:266px minmax(0,1fr) 340px;gap:12px;padding:12px;align-items:start}
@@ -262,6 +264,7 @@ a{color:inherit}
   <div class="search"><span class="ic">⌕</span><input id="q" placeholder="결과물 검색" aria-label="검색"></div>
   <button class="icobtn" id="motion" title="모션 끄기/켜기" aria-label="모션 전환">◐</button>
   <button class="icobtn" id="theme" title="밝게/어둡게" aria-label="테마 전환">☾</button>
+  <button class="btn" id="fresh" hidden>새 내용 · 새로고침</button>
   <button class="btn pri" id="newmission">＋ 지시</button>
 </header>
 
@@ -721,6 +724,17 @@ document.addEventListener("keydown",e=>{
   if(cur) curStage=Math.max(0,cur.stages.findIndex(s=>s.status!=="done"));
   renderRail(); renderMission();
   document.title = cur ? `${cur.bottleneck==="없음"?"정상":"⚑ "+cur.bottleneck} — Mission Control` : "Mission Control";
+
+  // 라이브 — 엔진이 snapshot을 다시 쓰면 알린다. 강제로 새로고침하지 않는다(입력 중일 수 있다).
+  $("#fresh").addEventListener("click",()=>location.reload());
+  setInterval(async ()=>{
+    try{
+      const r=await fetch("snapshot.json?t="+Date.now(),{cache:"no-store"});
+      if(!r.ok) return;
+      const j=await r.json();
+      if(j.generated_at && j.generated_at!==D.generated_at) $("#fresh").hidden=false;
+    }catch{}
+  }, 90000);
 })();
 </script></body></html>"""
 
