@@ -7,7 +7,21 @@ import * as N from "./notion.js";
 import { systemPrompt, isoWeek } from "./org.js";
 import * as M from "./memory.js";
 import { renderPop2, MOOD_KEYS } from "./pop_render.js";
-import { genImage, hasImageGen } from "./imagegen.js";
+import { genImage as genGemini, hasImageGen } from "./imagegen.js";
+
+// 히어로 이미지 — Gemini를 먼저 쓰고, 막히면 GPT로 넘어간다.
+// (2026-09-06: 구글 503 한 번에 히어로가 통째로 빠져 글자만 남은 POP이 나왔다. 두 번째 장비를 붙인다.)
+async function genImage(prompt, out) {
+  try { return await genGemini(prompt, out); }
+  catch (e) {
+    console.error("Gemini 이미지 실패 → GPT로 전환:", String(e.message).slice(0, 110));
+    const { genImageGPT, hasGPT } = await import("./gpt.js");
+    if (!hasGPT()) throw e;
+    const r = await genImageGPT(prompt, out);
+    if (r) console.error("GPT 이미지로 생성 완료");
+    return r;
+  }
+}
 const readOpt = (cfg, f) => { try { return fs.readFileSync(path.join(cfg.dir, f), "utf8"); } catch { return ""; } };
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const POP_DIR = path.join(ROOT, "office/pop");

@@ -384,6 +384,47 @@ function failNotice(err) {
   return `> ⚠️ **회신을 쓰지 못했습니다.**\n>\n> 원인: \`${e.slice(0, 300)}\``;
 }
 
+// ── 교차검증 (crosscheck:run) — 2026-09-06 신설 (대표 결정)
+// 같은 과제를 우리 직원(Claude)과 GPT에 각각 시키고, 편집장이 둘을 나란히 놓고 판정한다.
+// "GPT는 80점인데 우리는 5점" 이라는 말을 조직 안에서 검증 가능한 형태로 바꾼다.
+export async function crosscheck_run(cfg, memo) {
+  const task = String(memo ?? process.env.INPUT_MEMO ?? "").trim();
+  if (!task) return "교차검증할 과제가 없습니다 (memo에 과제를 적어주세요)";
+  const { hasGPT, askGPT } = await import("./gpt.js");
+  if (!hasGPT()) return "OPENAI_API_KEY 시크릿이 없습니다 — 대표님이 GitHub Secret에 넣어주셔야 합니다";
+  const { items, w } = await ctx();
+
+  // 어느 직원의 일인지 과제에서 고른다
+  const who = /pop|포스터|디자인|비주얼/i.test(task) ? "pop_designer"
+            : /카피|헤드라인|한 줄|슬로건/.test(task) ? "panel_poem"
+            : "blog_writer";
+  const sys = systemPrompt(cfg, who, await M.inject(cfg, who, { max: 8 }));
+  const brand = readOpt(cfg, "brand_guide.md").slice(0, 3000);
+  const tone = readOpt(cfg, "tone_guide.md").slice(0, 2000);
+  const shared = `${task}\n\n# 우리 브랜드 가이드(발췌)\n${brand}\n\n# 톤 가이드(발췌)\n${tone}\n\n지점: ${cfg.stores.join(", ")}`;
+
+  let ours = "", theirs = "", err = "";
+  try { ours = await ask({ system: sys, model: cfg.staff[who].model, max_tokens: 3000, user: shared }); }
+  catch (e) { err += `우리 쪽 실패: ${e.message.slice(0, 90)}\n`; }
+  try { theirs = await askGPT({ system: sys, max_tokens: 3000, user: shared }); }
+  catch (e) { err += `GPT 쪽 실패: ${e.message.slice(0, 90)}\n`; }
+  if (!ours && !theirs) return "양쪽 다 실패\n" + err;
+
+  // 편집장이 판정한다 — 어느 쪽이 왜 나은지, 우리가 무엇을 배워야 하는지
+  let verdict = "";
+  try {
+    verdict = await ask({ system: systemPrompt(cfg, "editor", await M.inject(cfg, "editor", { max: 6 })), model: cfg.staff.editor.model, max_tokens: 2500,
+      user: `같은 과제를 우리 직원(${cfg.staff[who].display || who})과 외부 모델(GPT)에 각각 시켰습니다.\n\n# 과제\n${task}\n\n# A — 우리 직원\n${(ours || "(실패)").slice(0, 6000)}\n\n# B — GPT\n${(theirs || "(실패)").slice(0, 6000)}\n\n둘을 비교해 마크다운으로 쓰세요.\n1) **어느 쪽이 나은가** — A 또는 B를 고르고 이유. "둘 다 좋다"로 끝내지 마세요.\n2) **왜 갈렸는가** — 구조·문장·구체성·규제 중 무엇에서 차이가 났는지, 실제 문장을 인용해서.\n3) **우리가 가져올 것** — B가 나았다면 우리 직원 정의서·가이드의 어느 줄을 어떻게 고쳐야 그 차이가 메워지는지 구체적으로. A가 나았다면 왜 우리 방식이 맞는지.\n4) **규제 점검** — 양쪽에 담배사업법·국건법상 못 쓰는 표현이 있으면 지적.\n\n대표는 이 표를 보고 조직에 무엇을 고칠지 결정합니다. 아부하지 말고 정직하게 쓰세요.` });
+  } catch (e) { verdict = `(판정 실패: ${e.message.slice(0, 90)})`; }
+
+  const p = await N.createContent({ title: `교차검증 — ${task.slice(0, 34)}`, status: "승인 대기", line: "기획", type: "보고서",
+    team: "편집장", author: "주간 마케팅 편집장", week: w,
+    basis: `같은 과제를 ${cfg.staff[who].display || who}(Claude)와 GPT에 각각 · 편집장 판정`,
+    review: String(verdict).split("\n").find(l => l.trim())?.slice(0, 180) || "",
+    body: `# 교차검증\n\n**과제**\n${task}\n\n---\n\n# 편집장 판정\n${verdict}\n\n---\n\n# A — 우리 직원 (${cfg.staff[who].display || who})\n${ours || "(실패)"}\n\n---\n\n# B — GPT\n${theirs || "(실패)"}\n\n${err ? `\n---\n오류: ${err}` : ""}\n(${kstNow().slice(0, 16)})` });
+  return `교차검증 완료 → ${p.url}`;
+}
+
 // ── 자료 접수 (materials:add) — 2026-09-06 신설
 // 대표가 화면에서 글·링크를 던지면: ① 자료함 페이지에 그대로 남기고 ② 링크는 조직이 즉시 열어보고
 // ③ 본 것을 지식 카드로 남긴다. 노션에 들어가지 않아도 재료가 조직에 도착한다.
@@ -509,7 +550,7 @@ const _R = {
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
   "regulation_reviewer:review": regulation_reviewer_review, "quality_editor:review": quality_editor_review, "risk:scan": risk_scan, "upload_recorder:instruct": upload_recorder_instruct,
   "upload_recorder:weekly": upload_recorder_weekly, "editor:weekly_memo": editor_weekly_memo, "events:poll": events_poll,
-  "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup, "materials:add": materials_add,
+  "pop_designer:make": pop_designer_make, "maintenance:dedup": maintenance_dedup, "materials:add": materials_add, "crosscheck:run": crosscheck_run,
   "sns:publish": sns_publish, "sns:health": sns_health,
   "industry_reader:read": M.industry_reader_read, "panel:study": M.panel_study,
   "company:standup": C.daily_standup, "company:retro": C.weekly_retro, "company:score": C.score_apply, "memory:lessons": M.detectLessons, "memory:self_review": M.selfReview, "memory:audit": M.memory_audit,

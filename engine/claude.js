@@ -14,7 +14,14 @@ function sniff(buf, file) {
   return MIME[String(file).split(".").pop().toLowerCase()] || "image/png";
 }
 
-export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [], max_tokens = 6000, images = [] }) {
+// engine:"gpt" 인 직원은 GPT로 생각한다 (department.json 직원에 넣는다). 나머지는 지금처럼 Claude.
+// 2026-09-06 대표 결정 — 두 번째 두뇌 연결.
+export async function ask({ system, user, model = "claude-sonnet-4-5", tools = [], max_tokens = 6000, images = [], engine = "" }) {
+  if (engine === "gpt") {
+    const { askGPT, hasGPT } = await import("./gpt.js");
+    if (hasGPT()) return askGPT({ system, user, max_tokens, images });
+    console.error("engine:gpt 지정됐지만 OPENAI_API_KEY 없음 — Claude로 대신 처리합니다");
+  }
   if (DRY) return `[DRY 응답] (${model}) ${user.slice(0, 80)}…`;
   const imgs = (images || []).filter(f => { try { return fs.statSync(f).size > 0; } catch { return false; } }).slice(0, 5);
   const content = imgs.length
