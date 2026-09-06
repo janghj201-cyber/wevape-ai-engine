@@ -167,9 +167,11 @@ a{color:inherit}
 .lane{display:grid;grid-template-columns:118px minmax(0,1fr);gap:10px;align-items:center;padding:5px 0}
 .lane .nm{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink2);font-weight:600;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.track{height:16px;border-radius:5px;background:var(--line2);position:relative;overflow:hidden}
-.track i{position:absolute;inset:0 auto 0 0;border-radius:5px;opacity:.85}
-.track span{position:absolute;left:7px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.track{height:17px;border-radius:5px;background:var(--line2);position:relative;overflow:hidden;
+  border:1px solid var(--line)}
+.track i{position:absolute;inset:0 auto 0 0;border-radius:5px;opacity:.34}
+.track span{position:absolute;left:7px;right:7px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .track.run i{animation:sh 2.6s ease-in-out infinite}
 @keyframes sh{0%,100%{filter:brightness(1)}50%{filter:brightness(1.22)}}
 
