@@ -544,8 +544,27 @@ ${summarize(items, 12)}`;
   return out.join("\n");
 }
 
+// ── 결재함 정리 (inbox:sweep) — 2026-09-06 대표 결정
+// 대표 말: "지금까지 잘 못 하고 있던 걸 보고하거나 수정했음, 이런 내용이니까 내가 시간 내서 볼 이유는 없다."
+// 맞는 지적이다. 앞으로는 notion.js 의 CEO_INBOX_TYPES 가 애초에 막지만, 이미 쌓인 것은 이 손으로 치운다.
+// 지우지 않는다 — 「승인」으로 종결시켜 도서관에 남긴다. 나중에 찾아볼 수는 있어야 한다.
+async function inbox_sweep(cfg) {
+  const { items } = await ctx();
+  const targets = items.filter(i => i.status === "승인 대기" && !N.CEO_INBOX_TYPES.has(i.type));
+  if (!targets.length) return "결재함에 정리할 보고서가 없습니다";
+  const done = [];
+  for (const it of targets) {
+    try {
+      await N.updateContent(it.id, { status: "승인",
+        review: `${it.review ? it.review + " · " : ""}자동 종결 — 보고서는 대표 결재함에 올리지 않습니다 (2026-09-06 규칙)` });
+      done.push(it.title);
+    } catch (e) { console.error("종결 실패:", it.title, e.message); }
+  }
+  return `결재함 정리 ${done.length}건 종결 — ${done.map(t => t.slice(0, 22)).join(" / ")}`;
+}
+
 const _R = {
-  "ceo:instruct": ceo_instruct,
+  "ceo:instruct": ceo_instruct, "inbox:sweep": inbox_sweep,
   "regulation_watcher:brief": regulation_watcher_brief, "trend_researcher:report": trend_researcher_report,
   "editor:meeting": editor_meeting, "editor:plan": editor_plan, "blog_writer:write": blog_writer_write,
   "regulation_reviewer:review": regulation_reviewer_review, "quality_editor:review": quality_editor_review, "risk:scan": risk_scan, "upload_recorder:instruct": upload_recorder_instruct,

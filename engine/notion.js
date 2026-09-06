@@ -68,9 +68,24 @@ export function mdToBlocks(md, max = 95) {
   return blocks;
 }
 
+// ── 대표 결재함 규칙 (2026-09-06 대표 결정) ────────────────────────────────
+// 대표는 승인·채점·방향 결정을 하는 사람이지, 우리가 뭘 점검했고 뭘 고쳤는지 읽어주는 사람이 아니다.
+// 그래서 「대표가 누르지 않으면 다음이 안 도는 것」만 승인 대기로 올린다.
+// 보고서·브리핑·감사·경보·교차검증은 만들어서 도서관에 쌓고 우리끼리 읽는다. 결재함에는 올리지 않는다.
+// 정말 대표 결정이 필요하면 그 판단을 「개정 제안」·「채용 제안」·「도구 제안」으로 올려라 — 그건 결재함에 뜬다.
+export const CEO_INBOX_TYPES = new Set([
+  "기획안", "회의록", "개정 제안", "채용 제안", "도구 제안",   // 대표가 정해야 다음이 도는 것
+  "리뷰형", "후기형", "POP",                                    // 실제로 세상에 나갈 결과물
+]);
+function gateStatus(status, type) {
+  if (status !== "승인 대기") return status;
+  if (CEO_INBOX_TYPES.has(type)) return status;
+  return "승인";                                                 // 보고서류는 자동 종결 — 도서관에만 쌓인다
+}
+
 export async function createContent({ title, status, line, type, team, stores = ["공통"], author, week, basis = "", review = "", memo = "", body = "" }) {
   const props = {
-    "제목": { title: rich(title) }, "상태": { select: { name: status } }, "라인": { select: { name: line } },
+    "제목": { title: rich(title) }, "상태": { select: { name: gateStatus(status, type) } }, "라인": { select: { name: line } },
     "유형": { select: { name: type } }, "팀": { select: { name: team } }, "지점": { multi_select: stores.map(name => ({ name })) },
     "작성자": { select: { name: author } }, "근거": { rich_text: rich(basis) },
   };
