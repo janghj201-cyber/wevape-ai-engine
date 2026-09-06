@@ -77,6 +77,7 @@ a{color:inherit}
 .btn.pri:hover{filter:brightness(1.08)}
 .btn.sm{padding:4px 9px;font-size:11.5px;border-radius:7px}
 .icobtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;width:31px;height:31px;cursor:pointer;display:grid;place-items:center}
+.nav .cnt{margin-left:5px;background:var(--stop);color:#fff;border-radius:999px;padding:0 6px;font-size:10.5px;font-weight:900}
 #fresh{border-color:var(--flow);color:var(--flow);animation:bl 2s ease-in-out infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.55}}
 
@@ -231,7 +232,22 @@ a{color:inherit}
 .scorebar{display:grid;grid-template-columns:96px minmax(0,1fr) 42px;gap:9px;align-items:center;padding:6px 13px;font-size:12px}
 .scorebar .t{height:7px;border-radius:4px;background:var(--line2);overflow:hidden}
 .scorebar .t i{display:block;height:100%;background:var(--active);border-radius:4px}
-.empty{padding:26px 13px;text-align:center;color:var(--ink3);font-size:12px}
+.ib{border-bottom:1px solid var(--line2)}
+.ib:last-child{border-bottom:0}
+.ibh{display:flex;gap:9px;align-items:flex-start;padding:12px 13px 9px;cursor:pointer}
+.ibh .g{min-width:0;flex:1}
+.ibh .t{font-weight:800;font-size:13.5px;margin-bottom:4px}
+.ibh .m{color:var(--ink3);font-size:11.5px}
+.ibh .d{color:var(--ink3);font-size:16px;padding-top:2px;transition:transform .2s}
+.ib.open .ibh .d{transform:rotate(90deg)}
+.ibb{display:none;padding:0 13px 13px}
+.ib.open .ibb{display:block}
+.body{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px 13px;font-size:12.3px;
+  line-height:1.7;white-space:pre-wrap;max-height:340px;overflow:auto}
+.body.big{max-height:none}
+.more{margin-top:6px}
+.aged{font-weight:900}
+.aged.hot{color:var(--stop)}
 .hide{display:none!important}
 
 @media (max-width:1180px){
@@ -255,6 +271,7 @@ a{color:inherit}
 <header class="top">
   <div class="brand"><span class="logo">W</span><span>Mission Control</span></div>
   <nav class="nav" id="nav">
+    <button data-v="inbox">결재<span class="cnt" id="inboxn" hidden></span></button>
     <button data-v="command" aria-selected="true">Command</button>
     <button data-v="rooms">Rooms</button>
     <button data-v="library">Library</button>
@@ -265,6 +282,7 @@ a{color:inherit}
   <button class="icobtn" id="motion" title="모션 끄기/켜기" aria-label="모션 전환">◐</button>
   <button class="icobtn" id="theme" title="밝게/어둡게" aria-label="테마 전환">☾</button>
   <button class="btn" id="fresh" hidden>새 내용 · 새로고침</button>
+  <button class="btn" id="xcheck" title="같은 과제를 우리 직원과 GPT에 각각 시켜 비교">⚖ 교차검증</button>
   <button class="btn pri" id="newmission">＋ 지시</button>
 </header>
 
@@ -302,6 +320,11 @@ a{color:inherit}
       </div>
     </section>
 
+    <section id="v-inbox" class="hide">
+      <div class="card"><h3>결재함 — 대표가 눌러야 다음이 돕니다 <span class="n" id="ibn"></span></h3>
+        <div id="inbox"></div></div>
+    </section>
+
     <section id="v-rooms" class="hide">
       <div class="card">
         <div class="tabs" id="rtabs">
@@ -334,6 +357,19 @@ a{color:inherit}
       <div class="kv" id="ikv"></div>
       <div id="iout"></div>
       <div id="iapp"></div>
+    </div>
+    <div class="card">
+      <h3>📥 자료 던지기 <span class="n">직원들이 읽습니다</span></h3>
+      <div class="drop" id="drop">
+        <textarea id="mat" placeholder="여기에 붙여넣으세요.&#10;· 링크(릴스·유튜브·웹) → 조직이 직접 열어보고 카드로 남깁니다&#10;· 글·메모 → 전 직원 교훈 카드가 됩니다&#10;· 사진 → 아래로 끌어다 놓거나 붙여넣기(Ctrl+V)"></textarea>
+        <div class="picks" id="picks"></div>
+        <div class="arow">
+          <button class="btn pri sm" id="matgo">보내기</button>
+          <label class="btn sm" style="cursor:pointer">사진 고르기<input type="file" id="matfile" accept="image/*" multiple hidden></label>
+          <a class="btn sm" href="" id="matnotion" target="_blank" rel="noopener" style="text-decoration:none">노션 자료함</a>
+        </div>
+        <div class="hint" id="matout">사진은 저장소 <span class="mono">office/materials/</span> 에 올라가고, 글·링크는 자료함에 남습니다.</div>
+      </div>
     </div>
     <div class="card">
       <h3>연결 <span class="n">외부</span></h3>
@@ -577,6 +613,42 @@ function renderInspector(){
     <div class="t"><span>${i}</span><span>${esc(t)}</span></div></a>`).join("");
 }
 
+/* ── 결재함 ─────────────────────────────── */
+function renderInbox(){
+  const P = D.pending || [];
+  $("#ibn").textContent = P.length ? `${P.length}건 대기` : "비어 있음";
+  const b=$("#inboxn"); b.hidden = !P.length; b.textContent = P.length;
+  if(!P.length){ $("#inbox").innerHTML = `<div class="empty">지금 결재할 것이 없습니다.</div>`; return; }
+  $("#inbox").innerHTML = P.map((r,idx)=>{
+    const days = Math.floor((NOW-new Date(r.t))/86400e3);
+    const pop = (D.pops||[]).find(p=>p.notion_id===r.id);
+    return `<div class="ib ${idx===0?"open":""}" data-ib="${idx}">
+      <div class="ibh"><span class="d">▸</span><div class="g">
+        <div class="t">${esc(r.title)}</div>
+        <div class="m">${esc(r.author||"—")} · ${esc(r.line)}/${esc(r.type)} · ${esc((r.stores||[]).join(","))} ·
+          <span class="aged ${days>=2?"hot":""}">${days}일째 대기</span></div>
+      </div><span class="badge b-wait">승인 대기</span></div>
+      <div class="ibb">
+        ${r.basis?`<div class="m" style="color:var(--ink3);font-size:11.5px;margin-bottom:7px">근거: ${esc(r.basis)}</div>`:""}
+        ${r.review?`<div class="m" style="color:var(--ink3);font-size:11.5px;margin-bottom:7px">검수: ${esc(r.review)}</div>`:""}
+        ${pop?`<div class="thumb" style="height:300px;margin-bottom:9px"><iframe src="${esc(pop.file)}" loading="lazy" title="POP"></iframe></div>`:""}
+        <div class="body" id="bd${idx}">${esc(r.body||"(본문 없음)")}</div>
+        <button class="btn sm more" data-big="${idx}">전체 보기</button>
+        <a class="btn sm more" href="${esc(r.url)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">노션에서 열기</a>
+        <div class="approve" style="border-top:0;padding-left:0;padding-right:0">
+          <textarea id="tx${idx}" placeholder="몇 점이고 왜 그런지. 이 문장이 그대로 직원 교훈 카드가 됩니다."></textarea>
+          <div class="arow">
+            <input type="number" id="sc${idx}" min="0" max="100" placeholder="점수">
+            <button class="btn pri sm" data-go="승인" data-i="${idx}">승인</button>
+            <button class="btn sm" data-go="반려" data-i="${idx}">반려</button>
+            <button class="btn sm" data-tok="1">⚙ 결재 연결</button>
+          </div>
+          <div class="hint" id="ho${idx}"></div>
+        </div>
+      </div></div>`;
+  }).join("");
+}
+
 /* ── Rooms / Library ─────────────────────── */
 function renderRooms(t){
   const el=$("#rooms");
@@ -659,14 +731,61 @@ async function dispatch(inputs, out){
   }catch(e){ out.className="hint err"; out.textContent="실패: "+e.message; return false; }
 }
 
+/* ── 자료 던지기 ─────────────────────────── */
+let PICKS=[];
+function drawPicks(){
+  $("#picks").innerHTML = PICKS.map((f,i)=>`<div class="pick"><img src="${f.url}" alt=""><b data-rm="${i}">×</b></div>`).join("");
+}
+function addFiles(list){
+  for(const f of list){
+    if(!f.type.startsWith("image/")) continue;
+    if(f.size > 4*1024*1024){ $("#matout").className="hint err"; $("#matout").textContent=`${f.name} 은 4MB가 넘어 건너뜁니다.`; continue; }
+    PICKS.push({file:f, url:URL.createObjectURL(f)});
+  }
+  drawPicks();
+}
+async function putImage(f){
+  const b64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(f);});
+  const stamp = new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+  const safe = f.name.replace(/[^\w.\-가-힣]/g,"_").slice(-40);
+  const path = `office/materials/${stamp}_${safe}`;
+  const r = await fetch(`https://api.github.com/repos/${D.repo}/contents/${encodeURI(path)}`,{
+    method:"PUT", headers:{Authorization:"Bearer "+tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},
+    body:JSON.stringify({message:`자료함: 대표가 올린 사진 ${safe}`, content:b64, branch:"main"})});
+  if(!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0,90)}`);
+  return path;
+}
+$("#drop").addEventListener("dragover",e=>{e.preventDefault();$("#drop").classList.add("over")});
+$("#drop").addEventListener("dragleave",()=>$("#drop").classList.remove("over"));
+$("#drop").addEventListener("drop",e=>{e.preventDefault();$("#drop").classList.remove("over");addFiles(e.dataTransfer.files)});
+$("#mat").addEventListener("paste",e=>{const f=[...(e.clipboardData?.files||[])];if(f.length){e.preventDefault();addFiles(f);}});
+$("#matfile").addEventListener("change",e=>addFiles(e.target.files));
+$("#picks").addEventListener("click",e=>{const b=e.target.closest("[data-rm]");if(!b)return;PICKS.splice(+b.dataset.rm,1);drawPicks();});
+$("#matgo").addEventListener("click",async ()=>{
+  const out=$("#matout"), text=$("#mat").value.trim();
+  if(!text && !PICKS.length){ out.className="hint err"; out.textContent="보낼 것이 없습니다."; return; }
+  if(!tok()){ out.className="hint err"; out.textContent="먼저 ⚙ 결재 연결에서 토큰을 넣어주세요."; return askTok(); }
+  const paths=[];
+  if(PICKS.length){
+    out.className="hint"; out.textContent=`사진 ${PICKS.length}장 올리는 중…`;
+    for(const p of PICKS){ try{ paths.push(await putImage(p.file)); }catch(err){ out.className="hint err"; out.textContent="사진 업로드 실패: "+err.message; return; } }
+  }
+  const memo = [text, paths.length?`(사진 ${paths.length}장: ${paths.join(", ")})`:""].filter(Boolean).join("\n");
+  const ok = await dispatch({job:"materials:add",memo:memo.slice(0,900)},out);
+  if(ok){ $("#mat").value=""; PICKS=[]; drawPicks();
+    out.className="hint ok"; out.textContent=`접수했습니다${paths.length?` · 사진 ${paths.length}장 저장`:""}. 조직이 열어보고 카드로 남깁니다.`; }
+});
+
 /* ── 이벤트 배선 ─────────────────────────── */
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button[data-v]"); if(!b) return;
   view=b.dataset.v;
   [...$("#nav").children].forEach(x=>x.setAttribute("aria-selected", x===b));
+  $("#v-inbox").classList.toggle("hide",view!=="inbox");
   $("#v-command").classList.toggle("hide",view!=="command");
   $("#v-rooms").classList.toggle("hide",view!=="rooms");
   $("#v-library").classList.toggle("hide",view!=="library");
+  if(view==="inbox") renderInbox();
   if(view==="rooms") renderRooms("talk");
   if(view==="library") renderLibrary("pop");
 });
@@ -682,6 +801,20 @@ $("#stages").addEventListener("click",e=>{const b=e.target.closest("[data-s]");i
   curStage=+b.dataset.s; [...$("#stages").querySelectorAll(".stage")].forEach((x,i)=>x.setAttribute("aria-selected",i===curStage));
   renderInspector();});
 $("#q").addEventListener("input",renderEvents);
+$("#inbox").addEventListener("click",async e=>{
+  if(e.target.closest("[data-tok]")) return askTok();
+  const big=e.target.closest("[data-big]");
+  if(big){ const el=$("#bd"+big.dataset.big); el.classList.toggle("big");
+    big.textContent = el.classList.contains("big")?"접기":"전체 보기"; return; }
+  const h=e.target.closest(".ibh");
+  if(h){ h.parentElement.classList.toggle("open"); return; }
+  const go=e.target.closest("[data-go]"); if(!go) return;
+  const i=go.dataset.i, r=(D.pending||[])[i], out=$("#ho"+i);
+  const memo=$("#tx"+i).value.trim(), score=$("#sc"+i).value;
+  if(!memo){ out.className="hint err"; out.textContent="이유를 한 줄이라도 적어주세요 — 그대로 교훈 카드가 됩니다."; return; }
+  const ok=await dispatch({job:"company:score",page_id:r.id,score:String(score||""),decision:go.dataset.go,memo},out);
+  if(ok) go.closest(".ib").style.opacity=".5";
+});
 $("#iapp").addEventListener("click",async e=>{
   if(e.target.id==="ap-tok") return askTok();
   const b=e.target.closest("[data-d]"); if(!b) return;
@@ -694,6 +827,12 @@ $("#newmission").addEventListener("click",()=>{
   if(!memo) return;
   const out=document.createElement("div"); out.className="hint"; $("#links").prepend(out);
   dispatch({job:"ceo:instruct",memo:memo.slice(0,900)},out);
+});
+$("#xcheck").addEventListener("click",()=>{
+  const task=prompt("같은 과제를 우리 직원과 GPT에 각각 시켜 편집장이 판정합니다.\n(예: 논현점 A4 POP 한 장 스펙을 짜라 / 연수점 블로그 글 한 편을 써라)");
+  if(!task) return;
+  const out=document.createElement("div"); out.className="hint"; $("#links").prepend(out);
+  dispatch({job:"crosscheck:run",memo:task.slice(0,900)},out);
 });
 $("#theme").addEventListener("click",()=>{
   const r=document.documentElement, d=r.getAttribute("data-theme")==="dark";
@@ -722,7 +861,9 @@ document.addEventListener("keydown",e=>{
     <span>AI ${D.staff.length}명 · 활동 ${working}건${idle>26?" · 정지":""}</span>`;
 
   if(cur) curStage=Math.max(0,cur.stages.findIndex(s=>s.status!=="done"));
+  $("#matnotion").href = D.materials_url || "#";
   renderRail(); renderMission();
+  const pn=(D.pending||[]).length; const bb=$("#inboxn"); bb.hidden=!pn; bb.textContent=pn;
   document.title = cur ? `${cur.bottleneck==="없음"?"정상":"⚑ "+cur.bottleneck} — Mission Control` : "Mission Control";
 
   // 라이브 — 엔진이 snapshot을 다시 쓰면 알린다. 강제로 새로고침하지 않는다(입력 중일 수 있다).
