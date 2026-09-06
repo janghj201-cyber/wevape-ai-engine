@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-06T18:32",
+ "generated_at": "2026-09-06T18:34",
  "week": "2026-W37",
  "manager": "장현진 팀장",
  "staff": [
@@ -2166,7 +2166,7 @@
    "id": "3cc09730-b906-819e-8ef3-f2faee3dd5ed",
    "t": "2026-08-30T20:16+09:00",
    "title": "기억 감사 2026-08-30 — 출처 불명 60장",
-   "status": "승인 대기",
+   "status": "승인",
    "line": "보고",
    "type": "보고서",
    "author": "관리자",
@@ -2176,7 +2176,7 @@
    "week": "2026-W36",
    "basis": "지식 카드 60장 출처 확인 · 2026-08-30T20:16:10.073+09:00",
    "review": "출처 불명 60장 → 상태 내림 (업계 독서가 40장 · 시 읽는 사람 10장 · 소설 읽는 사람 10장)",
-   "memo": "",
+   "memo": "점수: 70 이런거 파악 잘 해서 비용이 들어가서나 시간 아깝게 보내면 안됨 (대표실 09-06 18:34)",
    "url": "https://app.notion.com/p/2026-08-30-60-3cc09730b906819e8ef3f2faee3dd5ed",
    "file": ""
   },
@@ -2850,7 +2850,7 @@
    "lessons": 66,
    "repeat": 1,
    "standups": 18,
-   "waiting": 9
+   "waiting": 8
   },
   "total": 42,
   "weights": {
@@ -2861,7 +2861,7 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-09-06T18:32"
+  "at": "2026-09-06T18:34"
  },
  "talk": {
   "standup": {
@@ -3152,23 +3152,6 @@
    "body": "SNS 발행 시스템 점검\n자동 실행이 꺼져 있습니다."
   },
   {
-   "id": "3cc09730-b906-819e-8ef3-f2faee3dd5ed",
-   "title": "기억 감사 2026-08-30 — 출처 불명 60장",
-   "line": "보고",
-   "type": "보고서",
-   "author": "관리자",
-   "stores": [
-    "공통"
-   ],
-   "week": "2026-W36",
-   "t": "2026-08-30T11:16:00.000Z",
-   "url": "https://app.notion.com/p/2026-08-30-60-3cc09730b906819e8ef3f2faee3dd5ed",
-   "basis": "지식 카드 60장 출처 확인 · 2026-08-30T20:16:10.073+09:00",
-   "review": "출처 불명 60장 → 상태 내림 (업계 독서가 40장 · 시 읽는 사람 10장 · 소설 읽는 사람 10장)",
-   "memo": "",
-   "body": "기억 감사\n확인한 카드 **60장** 중 출처가 실제로 열리지 않는 카드 **60장**을 찾아 상태를 「출처 불명」으로 내렸습니다. 이 카드들은 더 이상 직원들에게 주입되지 않습니다.\n직원별: 업계 독서가 40장 · 시 읽는 사람 10장 · 소설 읽는 사람 10장\n내려간 카드\n(업계 독서가) 소재·상황: 매장 알바 경험담 '누수가 왜이렇게 심하게 나나요' '발라리안은 단맛 쌔다 강조'—고객 실제 질문\n출처: https://evape.kr/bbs/board.php?bo_table=free&wr_id=3210334\n(업계 독서가) 소재·상황: 오프라인 매장 가격 '오프라인 매장이 온라인보다 20~50% 비싸다'—고객 인식\n출처: https://87male.com/622\n(업계 독서가) 글 구조·첫 문장: '매장 뒤쪽에 방이 있는지 자다 일어난듯한 모습으로 하품을 하며 나를 맞이해줬다'—장면 묘사형\n출처: https://87male.com/622\n(업계 독서가) 글 구조·첫 문장: '귀찮음이 느껴졌다' '딱 느끼기에도 사장님에게서'—오프라인 매장 응대 평가 톤\n출처: https://87male.com/622\n(업계 독서가) 금지 사례: 여가부 단속 '흡연 장면 시연' 89개 사이트 청소년유해매체물 심의 요청\n출처: https://www.mogef.go.kr/nw/enw/nw_enw_s001d.do;jsessionid=p3SkTu60IUESolu8E1J42-Ze.mogef10?mid=mda700&bbtSn=698450\n(업계 독서가) 금지 사례: Meta 광고 정책 '흡연 시뮬레이션 제품' 제한—무니코틴도 연출 금지\n출처: https://inside.ampm.co.kr/insight/59330\n(업계 독서가) 규제: 금연구역 액상 전자담배 흡연 과태료 10만원—2026년 6월 계도기간 종료\n출처: https://imnews.imbc.com/replay/2026/nwdesk/article/6832635_37004.html\n(업계 독서가) 규제: 영리 목적 담배 사용후기·비교 게시 금지 과태료 300만원—2020 발의안\n출처: https://www.sedaily.com/article/12551958\n(업계 독서가) 규제: 우편·전자거래 판매 금지 담배사업법 12조—위반 시 500만원 벌금\n출처: https://easylaw.go.kr/CSP/CnpClsMain.laf?popMenu=ov&csmSeq=908&ccfNo=3&cciNo=2&cnpClsNo=4\n(업계 독서가) 규제: 가향 표시 금지 국건법 9조의3—맛·향 표현 포장·광고 사용 금지 500만원 과태료\n출처: https://inews24.com/view/1961822\n(업계 독서가) 규제: 담배 광고 허용 매체 4가지—블로그·SNS는 불허, 1년 징역 또는 1천만원 벌금\n출처: https://easylaw.go.kr/CSP/CnpClsMain.laf?popMenu=ov&csmSeq=908&ccfNo=3&cciNo=2&cnpClsNo=3\n(업계 독서가) 규제: 2026년 4월 24일 합성니코틴 법적 담배 전환—온라인 판매 전면 금지 시행\n출처: https://inside.ampm.co.kr/insight/59292\n(업계 독서가) 2026 온라인 마케팅 허용 '온라인 판매 금지지만 블로그·SNS 콘텐츠 발행은 가능'\n출처: https://inside.ampm.co.kr/insight/59292\n(업계 독서가) 블로그 해시태그 '3~4개 권장, 너무 많으면 광고로 인식돼 노출 안 됨'\n출처: https://lilys.ai/ko/notes/805613\n(업계 독서가) 블로그 사진 평균 '1,500자 글에 평균 이미지 몇 장?'—이미지 비중 높음\n출처: https://blogswat.com/blog/?bmode=view&idx=28235028\n(업계 독서가) 2026년 블로그 핵심 '직접 경험·구체적 정보'—AI가 못 만드는 가치\n출처: https://sprint.codeit.kr/blog/naver-blog-algorithm-change-ai-briefing-clip-mate\n(업계 독서가) 2026년 블로그 글쓰기 '정답-먼저 구조(Answer-First)'—AI 브리핑 대응 핵심\n출처: https://weolbu.com/community/4122485/blog-seo-2026\n(업계 독서가) 블로그 글 구조 '두괄식 권장—중요한 정보 앞에, 중요도 높은 순서 나열'\n출처: https://kmong.com/article/397\n(업계 독서가) 블로그 제목 금지 '같은 키워드 반복은 네이버가 싫어하는 패턴'—누락 가능성\n출처: https://www.i-boss.co.kr/ab-6141-63829\n(업계 독서가) 블로그 제목 키워드 '2~3개 포함이 이상적'—너무 적거나 많으면 부정적\n출처: https://www.i-boss.co.kr/ab-6141-63829\n(업계 독서가) 블로그 제목 키워드 배치 '제목 앞쪽에 메인 키워드 배치가 이상적'—직관적 노출 유리\n출처: https://www.i-boss.co.kr/ab-6141-63829\n(업계 독서가) 검색어: '전자담배 액상 사이트' '전담 액상 추천'—온라인 금지 이후에도 검색 지속\n출처: https://xn--vl2b88ngnfcml.com/\n(업계 독서가) 소재·상황: 매장 '여러 형태 전자담배 테스트 체험형 매장'—업주 대화 중심 후기\n출처: https://www.koreadaily.com/article/20260427080340126\n(업계 독서가) 글 구조·첫 문장: '아직은 예전에 사둔 게 있어서 싸게 드릴 수 있다'—매장 업주 직접 인용 말투\n출처: https://www.koreadaily.com/article/20260427080340126\n(업계 독서가) 검색어: '전자담배 매장 찾기' '오프라인 매장' '가까운 매장'—실제 검색 표현\n출처: https://www.voopoo.com/ko/top-search/electronic-cigarettes-store-locator/\n(업계 독서가) 블로그 제목 패턴 '숫자·감정 유도 단어·연도 효과적' '모르면 손해·지금 당장·완전 정리'\n출처: https://adsensefarm.kr/%EB%B8%94%EB%A1%9C%EA%B7%B8-%EC%83%81%EC%9C%84%EB%85%B8%EC%B6%9C-%EC%8B%9C%ED%82%A4%EB%A0%A4%EB%A9%B4-%EA%BC%AD-%EC%95%8C%EC%95%84%EC%95%BC-%ED%95%98%EB%8A%94-%EC%A0%9C%EB%AA%A9-%EC%A7%93%EA%B8%B0/\n(업계 독서가) 블로그 제목 '공백 포함 32자' '첫 3단어+끝 3단어만 기억' '6단어 구성 최적'\n출처: https://seo.tbwakorea.com/blog/content-title-making/\n(업계 독서가) 블로그 사진 촬영 팁 '밝고 초점 잘 맞아야' '자연광 오전 11시~오후 2시 골든타임'\n출처: https://www.blogsumnail.com/blog/blog-photo-tips\n(업계 독서가) 블로그 사진 구성 '20~30개 이미지' '사진 많"
-  },
-  {
    "id": "3cc09730-b906-815c-8caa-c1fe3a9f4baa",
    "title": "기억 감사 2026-08-30 — 불명 0장 / 복구 58장",
    "line": "보고",
@@ -3381,7 +3364,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-09-06T10:32:23.735Z",
+  "at": "2026-09-06T10:34:46.147Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
