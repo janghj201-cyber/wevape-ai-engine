@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-06T18:55",
+ "generated_at": "2026-09-06T19:00",
  "week": "2026-W37",
  "manager": "장현진 팀장",
  "staff": [
@@ -2719,10 +2719,19 @@
  ],
  "memory": {
   "knowledge": 254,
-  "notes": 76,
-  "lessons": 70,
+  "notes": 75,
+  "lessons": 71,
   "proposals": 0,
   "latest": [
+   {
+    "t": "2026-09-06T19:00+09:00",
+    "type": "교훈 카드",
+    "staff": "공용",
+    "title": "대표 자료: 이정도가 80점\n(사진 4장: office/",
+    "summary": "이정도가 80점\n(사진 4장: office/materials/2026-09-06T09-59-26_스크린샷_2026-09-06_171056.png, office/materials/2026-09-06T09-59-29_스",
+    "url": "https://app.notion.com/p/80-4-office-3d309730b9068116b1fded58f59d25c6",
+    "category": "관리자 교훈"
+   },
    {
     "t": "2026-09-06T18:51+09:00",
     "type": "업무 노트",
@@ -2821,15 +2830,6 @@
     "summary": "제출 전 자료함 참고자료 대조 여부를 확인할 것",
     "url": "https://app.notion.com/p/3d309730b9068144a047cde6d8b4e08b",
     "category": "관리자 교훈"
-   },
-   {
-    "t": "2026-09-06T18:41+09:00",
-    "type": "교훈 카드",
-    "staff": "주간 마케팅 편집장",
-    "title": "자료함 확인 후 제출 필수",
-    "summary": "① 관리자는 \"자료함에 있는 사진을 보고 부족함 점 재 확인\"이라고 지적했습니다. ② 이는 제출 전에 자료함의 참고 자료를 충분히 검토하지 않았다는 의미입니다. ③ 다음부터는 회의록 작성 후 제출 전, 자료함에 있는",
-    "url": "https://app.notion.com/p/3d309730b90681898919ef2ee8ffe85e",
-    "category": "관리자 교훈"
    }
   ]
  },
@@ -2847,7 +2847,7 @@
    "approved": 9,
    "published": 0,
    "knowledge": 254,
-   "lessons": 70,
+   "lessons": 71,
    "repeat": 1,
    "standups": 18,
    "waiting": 8
@@ -2861,7 +2861,7 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-09-06T18:55"
+  "at": "2026-09-06T19:00"
  },
  "talk": {
   "standup": {
@@ -3364,7 +3364,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-09-06T10:55:39.653Z",
+  "at": "2026-09-06T11:00:26.918Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
