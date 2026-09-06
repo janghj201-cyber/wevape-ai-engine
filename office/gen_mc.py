@@ -288,6 +288,11 @@ a{color:inherit}
   .arow input[type=number]{width:76px;padding:9px}
   .body{font-size:13px;max-height:260px}
 }
+.sweep{display:flex;gap:11px;align-items:center;padding:11px 13px;margin:0;
+  border-bottom:1px solid var(--line2);background:color-mix(in srgb,var(--ink3) 6%,transparent);font-size:12.5px;color:var(--ink2)}
+.sweep>div{flex:1;min-width:0}
+.sweep .btn{flex:0 0 auto}
+@media (max-width:880px){ .sweep{flex-wrap:wrap} .sweep .btn{width:100%;padding:11px} }
 .bigdrop{padding:13px;display:flex;flex-direction:column;gap:10px}
 .bigdrop textarea{width:100%;box-sizing:border-box;min-height:150px;resize:vertical;
   padding:13px;border:2px dashed var(--line2);border-radius:12px;background:var(--bg);outline:0;line-height:1.7}
@@ -682,7 +687,14 @@ function renderInbox(){
   $("#ibn").textContent = P.length ? `${P.length}건 대기` : "비어 있음";
   const b=$("#inboxn"); b.hidden = !P.length; b.textContent = P.length;
   if(!P.length){ $("#inbox").innerHTML = setupHTML()+`<div class="empty">지금 결재할 것이 없습니다.</div>`; wireSetup($("#inbox")); return; }
-  $("#inbox").innerHTML = setupHTML() + P.map((r,idx)=>{
+  // 보고서류는 대표가 읽을 것이 아니다 — 한 번에 종결시킨다 (2026-09-06 대표 결정)
+  const CEO_TYPES = ["기획안","회의록","개정 제안","채용 제안","도구 제안","리뷰형","후기형","POP"];
+  const junk = P.filter(r=>!CEO_TYPES.includes(r.type));
+  const sweepBar = junk.length ? `<div class="sweep">
+      <div><b>보고서 ${junk.length}건</b>은 대표가 읽을 것이 아닙니다 — 점검·감사·경보·교차검증 기록입니다.
+      <div style="color:var(--ink3);font-size:11.5px;margin-top:3px">${junk.map(r=>esc(r.title.slice(0,26))).join(" · ")}</div></div>
+      <button class="btn" id="sweep">한 번에 정리</button></div>` : "";
+  $("#inbox").innerHTML = setupHTML() + sweepBar + P.map((r,idx)=>{
     const days = Math.floor((NOW-new Date(r.t))/86400e3);
     const pop = (D.pops||[]).find(p=>p.notion_id===r.id);
     return `<div class="ib ${idx===0?"open":""}" data-ib="${idx}">
@@ -711,6 +723,14 @@ function renderInbox(){
       </div></div>`;
   }).join("");
   wireSetup($("#inbox"));
+  const sw=$("#sweep");
+  if(sw) sw.onclick=async ()=>{
+    sw.disabled=true;
+    const out=document.createElement("div"); out.className="hint"; sw.after(out);
+    const ok=await dispatch({job:"inbox:sweep"},out);
+    if(ok) out.textContent="정리 중입니다. 1~3분 뒤 새로고침하면 결재함에 기획안만 남습니다.";
+    else sw.disabled=false;
+  };
 }
 
 function renderMat(){
