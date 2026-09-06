@@ -46,6 +46,7 @@ jobs:
       NOTION_HQ_URL: ${{ secrets.NOTION_HQ_URL }}
       NOTION_MEMORY_DB: ${{ secrets.NOTION_MEMORY_DB }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       WEVAPE_SNS_CODE: ${{ secrets.WEVAPE_SNS_CODE }}
       INPUT_PAGE_ID: ${{ github.event.inputs.page_id }}
       INPUT_SCORE: ${{ github.event.inputs.score }}
@@ -77,7 +78,7 @@ jobs:
             *)            echo "job=poll_events" >> $GITHUB_OUTPUT;;
           esac
       - name: 브라우저 눈 준비 (POP 제작·패널 자습에서만)
-        if: ${{ contains('pop_make panel_study sunday_reports', steps.pick.outputs.job) }}
+        if: ${{ contains('pop_make panel_study sunday_reports materials:add watch:url', steps.pick.outputs.job) }}
         run: |
           npm install playwright --no-save --no-fund --no-audit > /dev/null 2>&1
           npx playwright install --with-deps chromium 2>&1 | tail -2
