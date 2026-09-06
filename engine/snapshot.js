@@ -54,6 +54,8 @@ export async function snapshot(cfg) {
   };
   fs.mkdirSync(path.join(ROOT, "office"), { recursive: true });
   fs.writeFileSync(path.join(ROOT, "office/snapshot.json"), JSON.stringify(snap, null, 1));
-  execSync(`python3 office/gen_office.py office/snapshot.json > office/index.html`, { cwd: ROOT, stdio: "inherit" });
-  console.log("본사 화면 재생성: office/index.html");
+  // 2026-09-06: 인계 문서(Mission Control) 적용 — 새 운영 콘솔이 index, 기존 사무실 화면은 classic으로 보존
+  execSync(`python3 office/gen_mc.py office/snapshot.json > office/index.html`, { cwd: ROOT, stdio: "inherit" });
+  execSync(`python3 office/gen_office.py office/snapshot.json > office/classic.html`, { cwd: ROOT, stdio: "inherit" });
+  console.log("본사 화면 재생성: office/index.html (Mission Control) + office/classic.html");
 }
