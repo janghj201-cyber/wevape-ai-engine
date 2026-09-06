@@ -795,10 +795,39 @@ function paintConn(){
   const b=$("#conn");
   b.classList.toggle("on",connOK());
   b.textContent = connOK() ? "연결됨" : "연결 필요";
+  b.title = connOK() ? "눌러서 다시 연결하거나 지금 되는지 확인" : "결재·자료를 보내려면 한 번만 연결하면 됩니다";
   document.querySelectorAll(".setup").forEach(e=>e.hidden=connOK());
 }
 // 한 번만 하면 됩니다. 발급 링크에 권한이 미리 채워져 있어 [Generate] 만 누르면 끝.
+// classic 토큰이어야 합니다. fine-grained(github_pat_…) 는 이 화면에서 403 "Resource not accessible by
+// personal access token" 이 납니다 — 사진 저장(Contents write)이 막혀서입니다. (2026-09-06 대표 신고)
 const TOKEN_URL = "https://github.com/settings/tokens/new?scopes=repo&description=" + encodeURIComponent("위베이프 결재·자료");
+
+/** 403·401을 대표가 읽을 수 있는 한국어로 바꾼다. 원문 JSON을 그대로 보여주지 않는다. */
+function tokenHint(status, body){
+  const b = String(body||"");
+  if (status===401) return "토큰이 만료됐거나 값이 잘못됐습니다. 아래에서 다시 발급해 주세요.";
+  if (status===403 && /personal access token/i.test(b))
+    return "이 토큰은 권한이 모자랍니다. 「fine-grained」 토큰을 쓰신 것 같습니다 — 아래 링크로 classic 토큰(repo)을 다시 발급해 주세요.";
+  if (status===403) return "권한이 거부됐습니다. 아래에서 classic 토큰(repo)으로 다시 발급해 주세요.";
+  if (status===404) return "이 저장소에 접근할 수 없는 토큰입니다. 아래에서 다시 발급해 주세요.";
+  return `실패 ${status} — ${b.slice(0,90)}`;
+}
+
+/** 저장 직전에 실제로 되는지 확인한다. 되지도 않는 토큰을 「연결됨」으로 표시하지 않기 위해. */
+async function verifyToken(v){
+  const fine = /^github_pat_/.test(v);   // fine-grained 도 권한만 맞으면 되지만, 대개 모자라다
+  let r;
+  try { r = await fetch(`https://api.github.com/repos/${D.repo}`,{headers:{Authorization:"Bearer "+v,Accept:"application/vnd.github+json"}}); }
+  catch(e){ return {ok:false, msg:"인터넷 연결을 확인해 주세요: "+e.message}; }
+  const tail = fine ? " (지금 쓰신 건 fine-grained 토큰입니다 — 위 링크의 classic 토큰이 훨씬 간단합니다)" : "";
+  if (!r.ok) return {ok:false, msg: tokenHint(r.status, await r.text()) + tail};
+  const j = await r.json();
+  if (!j.permissions?.push)
+    return {ok:false, msg:"읽기만 되는 토큰입니다. 쓰기 권한이 있어야 합니다." + tail};
+  return {ok:true, msg:"확인됐습니다. 승인·반려·사진 보내기 전부 됩니다."};
+}
+
 function setupHTML(){
   return `<div class="setup" ${connOK()?"hidden":""}>
     <h4>⚠ 한 번만 연결하면 됩니다</h4>
@@ -808,24 +837,51 @@ function setupHTML(){
       <li>나온 <span class="mono">ghp_…</span> 를 복사해서 아래에 붙여넣고 저장</li>
     </ol>
     <div class="k"><input type="password" class="tokin" placeholder="ghp_ 로 시작하는 값을 붙여넣기" autocomplete="off">
-      <button class="btn pri" data-save="1">저장</button></div>
+      <button class="btn pri" data-save="1">저장</button>
+      <button class="btn" data-test="1">지금 되는지 확인</button>
+      <button class="btn" data-clear="1">연결 지우기</button></div>
     <div class="hint tokmsg"></div>
+    <div style="font-size:11.5px;color:var(--ink3);margin-top:7px">
+      <b>github_pat_</b> 로 시작하는 값은 안 됩니다 — 사진 저장이 막혀 403이 납니다. <b>ghp_</b> 로 시작하는 값이어야 합니다.
+    </div>
   </div>`;
 }
 function wireSetup(root){
-  root.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{
-    const box=b.closest(".setup"), v=box.querySelector(".tokin").value.trim(), m=box.querySelector(".tokmsg");
-    if(!v){ m.className="hint err"; m.textContent="값이 비어 있습니다."; return; }
+  const done = (box,cls,txt)=>{ const m=box.querySelector(".tokmsg"); if(!m) return;
+    m.className="hint tokmsg "+cls; m.textContent=txt; };
+  root.querySelectorAll("[data-save]").forEach(b=>b.onclick=async ()=>{
+    const box=b.closest(".setup"), v=box.querySelector(".tokin").value.trim();
+    if(!v) return done(box,"err","값이 비어 있습니다.");
+    done(box,"","확인 중…");
+    const res = await verifyToken(v);
+    if(!res.ok) return done(box,"err",res.msg);          // 안 되는 토큰은 저장하지 않는다
     localStorage.setItem("wv_gh_token", v);
-    m.className="hint ok"; m.textContent="연결됐습니다. 이제 승인·자료 보내기가 됩니다.";
+    done(box,"ok",res.msg);
     paintConn(); setTimeout(()=>{ renderInbox(); renderMat(); }, 600);
   });
+  root.querySelectorAll("[data-test]").forEach(b=>b.onclick=async ()=>{
+    const box=b.closest(".setup"), v=(box.querySelector(".tokin").value.trim()||tok());
+    if(!v) return done(box,"err","아직 연결된 값이 없습니다.");
+    done(box,"","확인 중…");
+    const res = await verifyToken(v);
+    done(box,res.ok?"ok":"err",res.msg);
+  });
+  root.querySelectorAll("[data-clear]").forEach(b=>b.onclick=()=>{
+    localStorage.removeItem("wv_gh_token");
+    const box=b.closest(".setup"); box.querySelector(".tokin").value="";
+    done(box,"","지웠습니다. 새 값을 넣어 주세요."); paintConn(); box.hidden=false;
+  });
 }
-function askTok(){
-  view="mat"; [...$("#nav").children].forEach(x=>x.setAttribute("aria-selected",x.dataset.v==="mat"));
+/** force=true 면 이미 연결돼 있어도 패널을 연다 (403 처럼 「연결됨인데 안 되는」 경우) */
+function askTok(force){
+  view="mat"; document.body.dataset.view="mat";
+  [...$("#nav").children].forEach(x=>x.setAttribute("aria-selected",x.dataset.v==="mat"));
   ["inbox","mat","command","rooms","library"].forEach(v=>$("#v-"+v).classList.toggle("hide",v!=="mat"));
   renderMat();
-  setTimeout(()=>document.querySelector(".setup .tokin")?.focus(),200);
+  setTimeout(()=>{
+    if(force) document.querySelectorAll("#v-mat .setup").forEach(e=>e.hidden=false);
+    const i=document.querySelector("#v-mat .setup .tokin"); i?.focus(); i?.scrollIntoView({block:"center",behavior:"smooth"});
+  },200);
 }
 async function dispatch(inputs, out){
   const t=tok();
@@ -836,7 +892,10 @@ async function dispatch(inputs, out){
       method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json","Content-Type":"application/json"},
       body:JSON.stringify({ref:"main",inputs})});
     if(r.status===204){ out.className="hint ok"; out.textContent="접수됐습니다. 1~3분 뒤 화면이 갱신됩니다."; return true; }
-    out.className="hint err"; out.textContent="실패 "+r.status+" — "+(await r.text()).slice(0,120); return false;
+    const body=await r.text();
+    out.className="hint err"; out.textContent=tokenHint(r.status, body);
+    if(r.status===401||r.status===403||r.status===404) askTok(true);
+    return false;
   }catch(e){ out.className="hint err"; out.textContent="실패: "+e.message; return false; }
 }
 
@@ -861,7 +920,7 @@ async function putImage(f){
   const r = await fetch(`https://api.github.com/repos/${D.repo}/contents/${encodeURI(path)}`,{
     method:"PUT", headers:{Authorization:"Bearer "+tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},
     body:JSON.stringify({message:`자료함: 대표가 올린 사진 ${safe}`, content:b64, branch:"main"})});
-  if(!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0,90)}`);
+  if(!r.ok){ const e=new Error(tokenHint(r.status, await r.text())); e.status=r.status; throw e; }
   return path;
 }
 $("#drop").addEventListener("dragover",e=>{e.preventDefault();$("#drop").classList.add("over")});
@@ -877,7 +936,9 @@ $("#matgo").addEventListener("click",async ()=>{
   const paths=[];
   if(PICKS.length){
     out.className="hint"; out.textContent=`사진 ${PICKS.length}장 올리는 중…`;
-    for(const p of PICKS){ try{ paths.push(await putImage(p.file)); }catch(err){ out.className="hint err"; out.textContent="사진 업로드 실패: "+err.message; return; } }
+    for(const p of PICKS){ try{ paths.push(await putImage(p.file)); }
+      catch(err){ out.className="hint err"; out.textContent="사진을 저장하지 못했습니다 — "+err.message;
+        if([401,403,404].includes(err.status)) askTok(true); return; } }
   }
   const memo = [text, paths.length?`(사진 ${paths.length}장: ${paths.join(", ")})`:""].filter(Boolean).join("\n");
   const ok = await dispatch({job:"materials:add",memo:memo.slice(0,900)},out);
@@ -945,7 +1006,7 @@ $("#xcheck").addEventListener("click",()=>{
   const out=document.createElement("div"); out.className="hint"; $("#links").prepend(out);
   dispatch({job:"crosscheck:run",memo:task.slice(0,900)},out);
 });
-$("#conn").addEventListener("click",askTok);
+$("#conn").addEventListener("click",()=>askTok(true));
 $("#matcam")?.addEventListener("change",e=>addFiles(e.target.files));
 $("#theme").addEventListener("click",()=>{
   const r=document.documentElement, d=r.getAttribute("data-theme")==="dark";
