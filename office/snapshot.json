@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-10T10:47",
+ "generated_at": "2026-09-10T13:59",
  "week": "2026-W38",
  "manager": "장현진 팀장",
  "staff": [
@@ -2611,6 +2611,24 @@
    "memo": "",
    "url": "https://app.notion.com/p/2026-09-09-3d609730b9068134b986e4b8c87ae7c4",
    "file": ""
+  },
+  {
+   "id": "3d709730-b906-8181-b878-ecac8ab39e37",
+   "t": "2026-09-10T13:59+09:00",
+   "title": "데일리 스탠드업 2026-09-10",
+   "status": "승인",
+   "line": "보고",
+   "type": "스탠드업",
+   "author": "주간 마케팅 편집장",
+   "stores": [
+    "공통"
+   ],
+   "week": "2026-W38",
+   "basis": "11명 참석 · 요청 0건 전달",
+   "review": "",
+   "memo": "",
+   "url": "https://app.notion.com/p/2026-09-10-3d709730b9068181b878ecac8ab39e37",
+   "file": ""
   }
  ],
  "pops": [
@@ -2950,14 +2968,14 @@
   "learning": 90,
   "collaboration": 100,
   "counts": {
-   "items": 136,
-   "week_items": 6,
+   "items": 137,
+   "week_items": 7,
    "approved": 9,
    "published": 0,
    "knowledge": 284,
    "lessons": 38,
    "repeat": 1,
-   "standups": 21,
+   "standups": 22,
    "waiting": 1
   },
   "total": 42,
@@ -2969,12 +2987,12 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-09-10T10:47"
+  "at": "2026-09-10T13:59"
  },
  "talk": {
   "standup": {
-   "date": "2026-09-09",
-   "at": "2026-09-09T13:57",
+   "date": "2026-09-10",
+   "at": "2026-09-10T13:59",
    "lines": [
     {
      "who": "주간 마케팅 편집장",
@@ -3315,7 +3333,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-09-10T02:47:16.903Z",
+  "at": "2026-09-10T05:59:11.472Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
