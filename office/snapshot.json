@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-25T22:42",
+ "generated_at": "2026-09-25T23:03",
  "week": "2026-W40",
  "manager": "장현진 팀장",
  "staff": [
@@ -2935,6 +2935,24 @@
    "memo": "",
    "url": "https://app.notion.com/p/2026-09-25-3e609730b90681aeaefad583f69c098d",
    "file": ""
+  },
+  {
+   "id": "3e609730-b906-8112-a499-d00a308eecd3",
+   "t": "2026-09-25T23:02+09:00",
+   "title": "주간 발행 결과 2026-W40",
+   "status": "승인",
+   "line": "보고",
+   "type": "보고서",
+   "author": "업로드 기록원",
+   "stores": [
+    "공통"
+   ],
+   "week": "2026-W40",
+   "basis": "엔진 집계",
+   "review": "",
+   "memo": "",
+   "url": "https://app.notion.com/p/2026-W40-3e609730b9068112a499d00a308eecd3",
+   "file": ""
   }
  ],
  "pops": [
@@ -3274,8 +3292,8 @@
   "learning": 90,
   "collaboration": 100,
   "counts": {
-   "items": 154,
-   "week_items": 5,
+   "items": 155,
+   "week_items": 6,
    "approved": 9,
    "published": 0,
    "knowledge": 284,
@@ -3293,7 +3311,7 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-09-25T22:42"
+  "at": "2026-09-25T23:03"
  },
  "talk": {
   "standup": {
@@ -3639,7 +3657,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-09-25T14:42:00.481Z",
+  "at": "2026-09-25T15:03:05.286Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
