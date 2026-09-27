@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-09-27T22:46",
- "week": "2026-W40",
+ "generated_at": "2026-09-28T00:29",
+ "week": "2026-W41",
  "manager": "장현진 팀장",
  "staff": [
   {
@@ -3320,7 +3320,7 @@
   ]
  },
  "score": {
-  "week": "2026-W40",
+  "week": "2026-W41",
   "blog_quality": 35,
   "pop_quality": 5,
   "execution": 0,
@@ -3329,7 +3329,7 @@
   "collaboration": 100,
   "counts": {
    "items": 157,
-   "week_items": 8,
+   "week_items": 0,
    "approved": 9,
    "published": 0,
    "knowledge": 284,
@@ -3347,7 +3347,7 @@
    "learning": 15,
    "collaboration": 10
   },
-  "at": "2026-09-27T22:46"
+  "at": "2026-09-28T00:29"
  },
  "talk": {
   "standup": {
@@ -3693,7 +3693,7 @@
   }
  ],
  "next_shift": {
-  "at": "2026-09-27T14:46:05.052Z",
+  "at": "2026-09-27T16:29:33.862Z",
   "label": "10분마다 승인 감지 · 매일 10:00 작성 / 12:00 POP(화·목) / 17:00 지시서"
  }
 }
